@@ -1,0 +1,11 @@
+# Cargo file
+/target
+**/*.rs.bk
+
+# Editor of IED
+.vscode
+.idea
+
+# Test file
+**/*.ncm
+**/*.flac
