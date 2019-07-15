@@ -9,4 +9,5 @@ aes = "0.3.2"
 aes-soft = "0.3.3"
 block-modes = "0.3.3"
 base64 = "0.10.1"
-rustc-serialize = "0.3.24"
+serde = { version = "1.0.94", features = ["derive"] }
+serde_json = "1.0.40"

@@ -1,7 +1,7 @@
 extern crate aes_soft;
 extern crate base64;
 extern crate block_modes;
-extern crate rustc_serialize;
+extern crate serde;
 
 use std::error;
 use std::fs::File;
@@ -11,7 +11,7 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use aes_soft::Aes128;
 use block_modes::block_padding::Pkcs7;
 use block_modes::{BlockMode, Ecb};
-use rustc_serialize::json::Json;
+use serde::Deserialize;
 
 type Aes128Ecb = Ecb<Aes128, Pkcs7>;
 
@@ -25,6 +25,20 @@ static MODIFY_KEY: [u8; 16] = [
     0x5C, 0x5D, 0x26, 0x30, 0x55, 0x3C, 0x27, 0x28,
 ];
 
+#[derive(Debug, Deserialize)]
+struct Modify {
+    #[serde(rename = "musicName")]
+    name: String,
+    #[serde(rename = "musicId")]
+    id: u64,
+    album: String,
+    alias: Vec<String>,
+    artist: Vec<(String, u64)>,
+    bitrate: u64,
+    duration: u64,
+    format: String,
+}
+
 pub fn process(input: &String) -> Result<(), Box<dyn error::Error>> {
     let file = File::open(input)?;
     let mut reader = BufReader::new(&file);
@@ -36,7 +50,9 @@ pub fn process(input: &String) -> Result<(), Box<dyn error::Error>> {
     let _ = get_image(&mut reader)?;
 
     let key_box = build_key_box(&key);
-    let output_file = File::create("./demo.flac")?;
+    let Modify { name, format, .. } = modify;
+    let output_name = format!("./{}.{}", name, format);
+    let output_file = File::create(output_name)?;
     let mut writer = BufWriter::new(&output_file);
     write_file(&mut reader, &mut writer, &key_box)?;
 
@@ -75,7 +91,7 @@ fn get_key(reader: &mut BufReader<&File>) -> io::Result<Vec<u8>> {
     Ok(decrypt_buffer[17..].to_vec())
 }
 
-fn get_modify(reader: &mut BufReader<&File>) -> Result<(), Box<dyn error::Error>> {
+fn get_modify(reader: &mut BufReader<&File>) -> Result<Modify, Box<dyn error::Error>> {
     let length = get_length(reader)?;
     let mut buffer = vec![0u8; length as usize];
     reader.read_exact(&mut buffer)?;
@@ -83,9 +99,9 @@ fn get_modify(reader: &mut BufReader<&File>) -> Result<(), Box<dyn error::Error>
     let modify_tmp = buffer.iter().map(|item| item ^ 0x63).collect::<Vec<u8>>();
     let modify_key = base64::decode(&modify_tmp[22..])?;
     let modify_str = String::from_utf8(decrypt(&modify_key, &MODIFY_KEY)[6..].to_vec())?;
-    let modify = Json::from_str(&modify_str)?;
+    let modify = serde_json::from_str::<Modify>(&modify_str)?;
 
-    Ok(())
+    Ok(modify)
 }
 
 fn crc_check(reader: &mut BufReader<&File>) -> Result<(), io::Error> {
