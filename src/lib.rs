@@ -40,9 +40,8 @@ struct Modify {
     format: String,
 }
 
-pub fn process(input: &str) -> Result<(), Box<dyn error::Error>> {
-    let input_path = Path::new(input);
-    let file = File::open(input_path)?;
+pub fn process(input: &Path) -> Result<(), Box<dyn error::Error>> {
+    let file = File::open(input)?;
     let mut reader = BufReader::new(&file);
 
     check_format(&mut reader)?;
@@ -52,7 +51,7 @@ pub fn process(input: &str) -> Result<(), Box<dyn error::Error>> {
     get_image(&mut reader)?;
 
     let key_box = build_key_box(&key);
-    let output_path = make_output_path(input_path, &modify);
+    let output_path = make_output_path(input, &modify);
     let output_file = File::create(output_path)?;
     let mut writer = BufWriter::new(&output_file);
     write_file(&mut reader, &mut writer, &key_box)?;
