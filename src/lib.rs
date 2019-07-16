@@ -7,6 +7,7 @@ use std::error;
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, BufWriter, Read, Write};
+use std::path::{Path, PathBuf};
 
 use aes_soft::Aes128;
 use block_modes::block_padding::Pkcs7;
@@ -39,20 +40,20 @@ struct Modify {
     format: String,
 }
 
-pub fn process(input: &String) -> Result<(), Box<dyn error::Error>> {
-    let file = File::open(input)?;
+pub fn process(input: &str) -> Result<(), Box<dyn error::Error>> {
+    let input_path = Path::new(input);
+    let file = File::open(input_path)?;
     let mut reader = BufReader::new(&file);
 
-    let _ = check_format(&mut reader)?;
+    check_format(&mut reader)?;
     let key = get_key(&mut reader)?;
     let modify = get_modify(&mut reader)?;
-    let _ = crc_check(&mut reader)?;
-    let _ = get_image(&mut reader)?;
+    crc_check(&mut reader)?;
+    get_image(&mut reader)?;
 
     let key_box = build_key_box(&key);
-    let Modify { name, format, .. } = modify;
-    let output_name = format!("./{}.{}", name, format);
-    let output_file = File::create(output_name)?;
+    let output_path = make_output_path(input_path, &modify);
+    let output_file = File::create(output_path)?;
     let mut writer = BufWriter::new(&output_file);
     write_file(&mut reader, &mut writer, &key_box)?;
 
@@ -66,17 +67,17 @@ fn decrypt(data: &[u8], key: &[u8]) -> Vec<u8> {
 
 fn check_format(reader: &mut BufReader<&File>) -> io::Result<()> {
     let mut buffer = [0u8; 8];
-    reader.read(&mut buffer)?;
-    if u64::from_ne_bytes(buffer) != 0x4d4144464e455443 {
+    reader.read_exact(&mut buffer)?;
+    if u64::from_ne_bytes(buffer) != 0x4d41_4446_4e45_5443 {
         return Err(io::Error::from(io::ErrorKind::InvalidData));
     }
-    reader.read(&mut [0u8; 2])?;
+    reader.read_exact(&mut [0u8; 2])?;
     Ok(())
 }
 
 fn get_length(reader: &mut BufReader<&File>) -> io::Result<u32> {
     let mut buffer = [0u8; 4];
-    reader.read(&mut buffer)?;
+    reader.read_exact(&mut buffer)?;
 
     Ok(u32::from_ne_bytes(buffer))
 }
@@ -106,7 +107,7 @@ fn get_modify(reader: &mut BufReader<&File>) -> Result<Modify, Box<dyn error::Er
 
 fn crc_check(reader: &mut BufReader<&File>) -> Result<(), io::Error> {
     let mut buffer = [0u8; 9];
-    reader.read(&mut buffer)?;
+    reader.read_exact(&mut buffer)?;
     Ok(())
 }
 
@@ -117,25 +118,36 @@ fn get_image(reader: &mut BufReader<&File>) -> Result<Vec<u8>, io::Error> {
     Ok(buffer)
 }
 
+fn make_output_path(input_path: &Path, modify: &Modify) -> PathBuf {
+    let Modify { format, name, artist, .. } = modify;
+    let default_output_name = || format!("{} - {}", artist[0].0, name);
+    let output_name = input_path.file_stem()
+        .map_or_else(default_output_name, |stem| {
+            stem.to_str().map_or_else(default_output_name, String::from)
+        });
+    let output_file = format!("{}.{}", output_name, format);
+    input_path.parent().unwrap().join(output_file)
+}
+
 fn write_file(
     reader: &mut BufReader<&File>,
     writer: &mut BufWriter<&File>,
-    key_box: &Vec<usize>,
+    key_box: &[usize],
 ) -> Result<(), io::Error> {
     let mut write_buffer = [0u8; 0x8000];
     while reader.read(&mut write_buffer)? > 0 {
-        for i in 0..0x8000 {
-            let j = (i + 1) & 0xff;
-            write_buffer[i] ^= key_box[key_box[j] + key_box[(key_box[j] + j) & 0xff] & 0xff] as u8;
-        }
-        writer.write(&mut write_buffer)?;
+        let buffer = write_buffer.iter().enumerate().map(|(index, item)| {
+            let j = (index + 1) &0xff;
+            item ^ key_box[(key_box[j] + key_box[(key_box[j] + j) & 0xff]) & 0xff] as u8
+        }).collect::<Vec<u8>>();
+        writer.write_all(&buffer)?;
     }
     writer.flush()?;
 
     Ok(())
 }
 
-fn build_key_box(key: &Vec<u8>) -> Vec<usize> {
+fn build_key_box(key: &[u8]) -> Vec<usize> {
     let mut key_box = (0..256).collect::<Vec<usize>>();
     let mut last_byte = 0;
     let mut offsets = (0..key.len()).cycle();
