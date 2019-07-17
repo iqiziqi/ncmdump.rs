@@ -3,7 +3,8 @@ extern crate base64;
 extern crate block_modes;
 extern crate serde;
 
-use std::error;
+mod error;
+
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -13,6 +14,8 @@ use aes_soft::Aes128;
 use block_modes::block_padding::Pkcs7;
 use block_modes::{BlockMode, Ecb};
 use serde::Deserialize;
+
+pub use error::{Error, ErrorKind};
 
 type Aes128Ecb = Ecb<Aes128, Pkcs7>;
 
@@ -40,8 +43,17 @@ struct Modify {
     format: String,
 }
 
-pub fn process(input: &Path) -> Result<(), Box<dyn error::Error>> {
-    let file = File::open(input)?;
+pub fn process(input: &Path) -> Result<(), Error> {
+    let file = File::open(input).map_err(|err| {
+        match err.kind() {
+            io::ErrorKind::NotFound =>
+                Error::from(ErrorKind::FileNotFound),
+            io::ErrorKind::PermissionDenied =>
+                Error::from(ErrorKind::PermissionDenied),
+            _ =>
+                Error::from(ErrorKind::Unknown),
+        }
+    })?;
     let mut reader = BufReader::new(&file);
 
     check_format(&mut reader)?;
@@ -52,68 +64,98 @@ pub fn process(input: &Path) -> Result<(), Box<dyn error::Error>> {
 
     let key_box = build_key_box(&key);
     let output_path = make_output_path(input, &modify);
-    let output_file = File::create(output_path)?;
+    let output_file = File::create(output_path).map_err(|_| {
+        Error::from(ErrorKind::ReadOrWrite)
+    })?;
     let mut writer = BufWriter::new(&output_file);
-    write_file(&mut reader, &mut writer, &key_box)?;
+    write_file(&mut reader, &mut writer, &key_box).map_err(|err| {
+        match err.kind() {
+            io::ErrorKind::PermissionDenied =>
+                Error::from(ErrorKind::PermissionDenied),
+            _ =>
+                Error::from(ErrorKind::ReadOrWrite),
+        }
+    })?;
 
     Ok(())
 }
 
-fn decrypt(data: &[u8], key: &[u8]) -> Vec<u8> {
+fn decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, Error> {
     let cipher = Aes128Ecb::new_var(&key, &[]).unwrap();
-    cipher.decrypt_vec(data).unwrap()
+    let a = cipher.decrypt_vec(data).unwrap();
+    Ok(a)
 }
 
-fn check_format(reader: &mut BufReader<&File>) -> io::Result<()> {
+fn check_format(reader: &mut BufReader<&File>) -> Result<(), Error> {
     let mut buffer = [0u8; 8];
-    reader.read_exact(&mut buffer)?;
+    reader.read_exact(&mut buffer).map_err(|_| {
+        Error::from(ErrorKind::ReadOrWrite)
+    })?;
     if u64::from_ne_bytes(buffer) != 0x4d41_4446_4e45_5443 {
-        return Err(io::Error::from(io::ErrorKind::InvalidData));
+        return Err(Error::from(ErrorKind::InvalidFile));
     }
-    reader.read_exact(&mut [0u8; 2])?;
+    reader.read_exact(&mut [0u8; 2]).map_err(|_| {
+        Error::from(ErrorKind::ReadOrWrite)
+    })?;
     Ok(())
 }
 
-fn get_length(reader: &mut BufReader<&File>) -> io::Result<u32> {
+fn get_length(reader: &mut BufReader<&File>) -> Result<u32, Error> {
     let mut buffer = [0u8; 4];
-    reader.read_exact(&mut buffer)?;
+    reader.read_exact(&mut buffer).map_err(|_| {
+        Error::from(ErrorKind::ReadOrWrite)
+    })?;
 
     Ok(u32::from_ne_bytes(buffer))
 }
 
-fn get_key(reader: &mut BufReader<&File>) -> io::Result<Vec<u8>> {
+fn get_key(reader: &mut BufReader<&File>) -> Result<Vec<u8>, Error> {
     let length = get_length(reader)?;
     let mut buffer = vec![0u8; length as usize];
-    reader.read_exact(&mut buffer)?;
+    reader.read_exact(&mut buffer).map_err(|_| {
+        Error::from(ErrorKind::ReadOrWrite)
+    })?;
 
     let key_buffer = buffer.iter().map(|byte| byte ^ 0x64).collect::<Vec<u8>>();
-    let decrypt_buffer = decrypt(&key_buffer, &HEADER_KEY);
+    let decrypt_buffer = decrypt(&key_buffer, &HEADER_KEY)?;
     Ok(decrypt_buffer[17..].to_vec())
 }
 
-fn get_modify(reader: &mut BufReader<&File>) -> Result<Modify, Box<dyn error::Error>> {
+fn get_modify(reader: &mut BufReader<&File>) -> Result<Modify, Error> {
     let length = get_length(reader)?;
     let mut buffer = vec![0u8; length as usize];
-    reader.read_exact(&mut buffer)?;
+    reader.read_exact(&mut buffer).map_err(|_| {
+        Error::from(ErrorKind::ReadOrWrite)
+    })?;
 
     let modify_tmp = buffer.iter().map(|item| item ^ 0x63).collect::<Vec<u8>>();
-    let modify_key = base64::decode(&modify_tmp[22..])?;
-    let modify_str = String::from_utf8(decrypt(&modify_key, &MODIFY_KEY)[6..].to_vec())?;
-    let modify = serde_json::from_str::<Modify>(&modify_str)?;
+    let modify_key = base64::decode(&modify_tmp[22..]).map_err(|_| {
+        Error::from(ErrorKind::Decode)
+    })?;
+    let modify_str = String::from_utf8(decrypt(&modify_key, &MODIFY_KEY)?[6..].to_vec()).map_err(|_| {
+        Error::from(ErrorKind::Decode)
+    })?;
+    let modify = serde_json::from_str::<Modify>(&modify_str).map_err(|_| {
+        Error::from(ErrorKind::Decode)
+    })?;
 
     Ok(modify)
 }
 
-fn crc_check(reader: &mut BufReader<&File>) -> Result<(), io::Error> {
+fn crc_check(reader: &mut BufReader<&File>) -> Result<(), Error> {
     let mut buffer = [0u8; 9];
-    reader.read_exact(&mut buffer)?;
+    reader.read_exact(&mut buffer).map_err(|_| {
+        Error::from(ErrorKind::ReadOrWrite)
+    })?;
     Ok(())
 }
 
-fn get_image(reader: &mut BufReader<&File>) -> Result<Vec<u8>, io::Error> {
+fn get_image(reader: &mut BufReader<&File>) -> Result<Vec<u8>, Error> {
     let length = get_length(reader)?;
     let mut buffer = vec![0u8; length as usize];
-    reader.read_exact(&mut buffer)?;
+    reader.read_exact(&mut buffer).map_err(|_| {
+        Error::from(ErrorKind::ReadOrWrite)
+    })?;
     Ok(buffer)
 }
 
