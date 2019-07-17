@@ -1,8 +1,8 @@
-extern crate structopt;
 extern crate ncmdump;
+extern crate structopt;
 
-use structopt::StructOpt;
 use ncmdump::process;
+use structopt::StructOpt;
 
 use std::path::PathBuf;
 
@@ -22,7 +22,7 @@ fn main() {
     let Opt { files, .. } = Opt::from_args();
     for file in files {
         if let Err(err) = process(&file) {
-            println!("Error: {:?}", err);
+            println!("Error: {}", err);
         }
     }
 }

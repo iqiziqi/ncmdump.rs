@@ -44,15 +44,10 @@ struct Modify {
 }
 
 pub fn process(input: &Path) -> Result<(), Error> {
-    let file = File::open(input).map_err(|err| {
-        match err.kind() {
-            io::ErrorKind::NotFound =>
-                Error::from(ErrorKind::FileNotFound),
-            io::ErrorKind::PermissionDenied =>
-                Error::from(ErrorKind::PermissionDenied),
-            _ =>
-                Error::from(ErrorKind::Unknown),
-        }
+    let file = File::open(input).map_err(|err| match err.kind() {
+        io::ErrorKind::NotFound => Error::from(ErrorKind::FileNotFound),
+        io::ErrorKind::PermissionDenied => Error::from(ErrorKind::PermissionDenied),
+        _ => Error::from(ErrorKind::Unknown),
     })?;
     let mut reader = BufReader::new(&file);
 
@@ -64,17 +59,11 @@ pub fn process(input: &Path) -> Result<(), Error> {
 
     let key_box = build_key_box(&key);
     let output_path = make_output_path(input, &modify);
-    let output_file = File::create(output_path).map_err(|_| {
-        Error::from(ErrorKind::ReadOrWrite)
-    })?;
+    let output_file = File::create(output_path).map_err(|_| Error::from(ErrorKind::ReadOrWrite))?;
     let mut writer = BufWriter::new(&output_file);
-    write_file(&mut reader, &mut writer, &key_box).map_err(|err| {
-        match err.kind() {
-            io::ErrorKind::PermissionDenied =>
-                Error::from(ErrorKind::PermissionDenied),
-            _ =>
-                Error::from(ErrorKind::ReadOrWrite),
-        }
+    write_file(&mut reader, &mut writer, &key_box).map_err(|err| match err.kind() {
+        io::ErrorKind::PermissionDenied => Error::from(ErrorKind::PermissionDenied),
+        _ => Error::from(ErrorKind::ReadOrWrite),
     })?;
 
     Ok(())
@@ -88,23 +77,20 @@ fn decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, Error> {
 
 fn check_format(reader: &mut BufReader<&File>) -> Result<(), Error> {
     let mut buffer = [0u8; 8];
-    reader.read_exact(&mut buffer).map_err(|_| {
-        Error::from(ErrorKind::ReadOrWrite)
-    })?;
+    reader.read_exact(&mut buffer)
+        .map_err(|_| Error::from(ErrorKind::ReadOrWrite))?;
     if u64::from_ne_bytes(buffer) != 0x4d41_4446_4e45_5443 {
         return Err(Error::from(ErrorKind::InvalidFile));
     }
-    reader.read_exact(&mut [0u8; 2]).map_err(|_| {
-        Error::from(ErrorKind::ReadOrWrite)
-    })?;
+    reader.read_exact(&mut [0u8; 2])
+        .map_err(|_| Error::from(ErrorKind::ReadOrWrite))?;
     Ok(())
 }
 
 fn get_length(reader: &mut BufReader<&File>) -> Result<u32, Error> {
     let mut buffer = [0u8; 4];
-    reader.read_exact(&mut buffer).map_err(|_| {
-        Error::from(ErrorKind::ReadOrWrite)
-    })?;
+    reader.read_exact(&mut buffer)
+        .map_err(|_| Error::from(ErrorKind::ReadOrWrite))?;
 
     Ok(u32::from_ne_bytes(buffer))
 }
@@ -112,9 +98,8 @@ fn get_length(reader: &mut BufReader<&File>) -> Result<u32, Error> {
 fn get_key(reader: &mut BufReader<&File>) -> Result<Vec<u8>, Error> {
     let length = get_length(reader)?;
     let mut buffer = vec![0u8; length as usize];
-    reader.read_exact(&mut buffer).map_err(|_| {
-        Error::from(ErrorKind::ReadOrWrite)
-    })?;
+    reader.read_exact(&mut buffer)
+        .map_err(|_| Error::from(ErrorKind::ReadOrWrite))?;
 
     let key_buffer = buffer.iter().map(|byte| byte ^ 0x64).collect::<Vec<u8>>();
     let decrypt_buffer = decrypt(&key_buffer, &HEADER_KEY)?;
@@ -124,45 +109,40 @@ fn get_key(reader: &mut BufReader<&File>) -> Result<Vec<u8>, Error> {
 fn get_modify(reader: &mut BufReader<&File>) -> Result<Modify, Error> {
     let length = get_length(reader)?;
     let mut buffer = vec![0u8; length as usize];
-    reader.read_exact(&mut buffer).map_err(|_| {
-        Error::from(ErrorKind::ReadOrWrite)
-    })?;
+    reader.read_exact(&mut buffer)
+        .map_err(|_| Error::from(ErrorKind::ReadOrWrite))?;
 
     let modify_tmp = buffer.iter().map(|item| item ^ 0x63).collect::<Vec<u8>>();
-    let modify_key = base64::decode(&modify_tmp[22..]).map_err(|_| {
-        Error::from(ErrorKind::Decode)
-    })?;
-    let modify_str = String::from_utf8(decrypt(&modify_key, &MODIFY_KEY)?[6..].to_vec()).map_err(|_| {
-        Error::from(ErrorKind::Decode)
-    })?;
-    let modify = serde_json::from_str::<Modify>(&modify_str).map_err(|_| {
-        Error::from(ErrorKind::Decode)
-    })?;
+    let modify_key = base64::decode(&modify_tmp[22..])
+        .map_err(|_| Error::from(ErrorKind::InvalidFile))?;
+    let modify_str = String::from_utf8(decrypt(&modify_key, &MODIFY_KEY)?[6..].to_vec())
+        .map_err(|_| Error::from(ErrorKind::InvalidFile))?;
+    let modify =serde_json::from_str::<Modify>(&modify_str)
+        .map_err(|_| Error::from(ErrorKind::InvalidFile))?;
 
     Ok(modify)
 }
 
 fn crc_check(reader: &mut BufReader<&File>) -> Result<(), Error> {
     let mut buffer = [0u8; 9];
-    reader.read_exact(&mut buffer).map_err(|_| {
-        Error::from(ErrorKind::ReadOrWrite)
-    })?;
+    reader.read_exact(&mut buffer)
+        .map_err(|_| Error::from(ErrorKind::ReadOrWrite))?;
     Ok(())
 }
 
 fn get_image(reader: &mut BufReader<&File>) -> Result<Vec<u8>, Error> {
     let length = get_length(reader)?;
     let mut buffer = vec![0u8; length as usize];
-    reader.read_exact(&mut buffer).map_err(|_| {
-        Error::from(ErrorKind::ReadOrWrite)
-    })?;
+    reader.read_exact(&mut buffer)
+        .map_err(|_| Error::from(ErrorKind::ReadOrWrite))?;
     Ok(buffer)
 }
 
 fn make_output_path(input_path: &Path, modify: &Modify) -> PathBuf {
     let Modify { format, name, artist, .. } = modify;
     let default_output_name = || format!("{} - {}", artist[0].0, name);
-    let output_name = input_path.file_stem()
+    let output_name = input_path
+        .file_stem()
         .map_or_else(default_output_name, |stem| {
             stem.to_str().map_or_else(default_output_name, String::from)
         });
@@ -178,9 +158,10 @@ fn write_file(
     let mut write_buffer = [0u8; 0x8000];
     while reader.read(&mut write_buffer)? > 0 {
         let buffer = write_buffer.iter().enumerate().map(|(index, item)| {
-            let j = (index + 1) &0xff;
+            let j = (index + 1) & 0xff;
             item ^ key_box[(key_box[j] + key_box[(key_box[j] + j) & 0xff]) & 0xff] as u8
-        }).collect::<Vec<u8>>();
+        })
+        .collect::<Vec<u8>>();
         writer.write_all(&buffer)?;
     }
     writer.flush()?;
@@ -189,8 +170,8 @@ fn write_file(
 }
 
 fn build_key_box(key: &[u8]) -> Vec<usize> {
-    let mut key_box = (0..256).collect::<Vec<usize>>();
     let mut last_byte = 0;
+    let mut key_box = (0..256).collect::<Vec<usize>>();
     let mut offsets = (0..key.len()).cycle();
 
     for i in 0..256 {
