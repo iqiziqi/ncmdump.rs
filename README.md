@@ -21,7 +21,6 @@ USAGE:
     ncmdump [FLAGS] [OPTIONS]
 
 FLAGS:
-    -a, --auto-name    Use auto file name instead of input file name.
     -h, --help         Prints help information
     -V, --version      Prints version information
 
