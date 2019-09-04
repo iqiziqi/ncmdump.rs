@@ -28,9 +28,7 @@ impl Error {
 
     pub fn msg(&self) -> &str {
         match self.kind() {
-            ErrorKind::FileNotFound => "No such file",
             ErrorKind::InvalidFile => "Invalid file",
-            ErrorKind::ReadOrWrite => "Operate file error",
             ErrorKind::PermissionDenied => "Permission denied",
             ErrorKind::Unknown => "Unknown error",
         }
@@ -39,9 +37,7 @@ impl Error {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ErrorKind {
-    FileNotFound,
     InvalidFile,
-    ReadOrWrite,
     PermissionDenied,
     Unknown,
 }
