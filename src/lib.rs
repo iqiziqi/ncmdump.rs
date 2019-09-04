@@ -6,7 +6,6 @@ extern crate serde;
 mod error;
 mod tools;
 
-use crate::tools::Modify;
 use crate::tools::{
     get_length,
     get_image,
@@ -17,6 +16,7 @@ use crate::tools::{
     get_n_element,
 };
 
+pub use tools::{Modify};
 pub use error::{Error, ErrorKind};
 
 pub fn process(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {

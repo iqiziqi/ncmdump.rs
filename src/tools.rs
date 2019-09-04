@@ -28,15 +28,15 @@ static MODIFY_KEY: [u8; 16] = [
 #[derive(Debug, Deserialize)]
 pub struct Modify {
     #[serde(rename = "musicName")]
-    name: String,
+    pub name: String,
     #[serde(rename = "musicId")]
-    id: u64,
-    album: String,
-    alias: Vec<String>,
-    artist: Vec<(String, u64)>,
-    bitrate: u64,
-    duration: u64,
-    format: String,
+    pub id: u64,
+    pub album: String,
+    pub alias: Vec<String>,
+    pub artist: Vec<(String, u64)>,
+    pub bitrate: u64,
+    pub duration: u64,
+    pub format: String,
 }
 
 pub fn get_n_element(iter: &mut Iter<u8>, n: usize) -> Option<Vec<u8>> {
