@@ -21,9 +21,10 @@ USAGE:
     ncmdump [FLAGS] [OPTIONS]
 
 FLAGS:
-    -h, --help         Prints help information
-    -V, --version      Prints version information
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+    -v, --verbose    Verbosely list files processing
 
 OPTIONS:
-    -f, --files <files>...    This option can specified the files.
+    -f, --files <files>...    Specified the files
 ```
