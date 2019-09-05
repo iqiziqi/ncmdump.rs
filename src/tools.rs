@@ -39,7 +39,15 @@ pub struct Modify {
     pub format: String,
 }
 
-pub fn get_n_element(iter: &mut Iter<u8>, n: usize) -> Option<Vec<u8>> {
+pub struct BlockInfo {
+    pub key: Vec<u8>,
+    pub modify: Vec<u8>,
+    pub crc: Vec<u8>,
+    pub image: Vec<u8>,
+    pub data: Vec<u8>,
+}
+
+fn get_n_element(iter: &mut Iter<u8>, n: usize) -> Option<Vec<u8>> {
     let mut result: Vec<u8> = Vec::new();
     for _ in 0..n {
         if let Some(i) = iter.next() {
@@ -50,13 +58,13 @@ pub fn get_n_element(iter: &mut Iter<u8>, n: usize) -> Option<Vec<u8>> {
     Some(result)
 }
 
-pub fn decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, Error> {
+fn decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, Error> {
     let cipher = Aes128Ecb::new_var(&key, &[]).unwrap();
-    let a = cipher.decrypt_vec(data).unwrap();
-    Ok(a)
+    let result = cipher.decrypt_vec(data).unwrap();
+    Ok(result)
 }
 
-pub fn check_format(buffer: &[u8]) -> Result<(), Error> {
+fn check_format(buffer: &[u8]) -> Result<(), Error> {
     let (buf, _) = buffer.split_at(std::mem::size_of::<u64>());
     if u64::from_ne_bytes(buf.try_into().unwrap()) != 0x4d41_4446_4e45_5443 {
         return Err(Error::from(ErrorKind::InvalidFile));
@@ -64,10 +72,74 @@ pub fn check_format(buffer: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn get_length(buffer: &[u8]) -> Result<u32, Error> {
+fn get_length(buffer: &[u8]) -> Result<u32, Error> {
     let bytes = buffer.try_into().unwrap();
     let length = u32::from_ne_bytes(bytes);
     Ok(length)
+}
+
+fn build_key_box(key: &[u8]) -> Vec<usize> {
+    let mut last_byte = 0;
+    let mut key_box = (0..256).collect::<Vec<usize>>();
+    let mut offsets = (0..key.len()).cycle();
+    for i in 0..256 {
+        let offset = offsets.next().unwrap();
+        let c = (key_box[i] + last_byte + key[offset] as usize) & 0xff;
+        key_box.swap(i, c);
+        last_byte = c;
+    }
+    key_box
+}
+
+pub fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo, Error> {
+
+    let mut iter = file_buffer.iter();
+
+    // format area
+    {
+        let buffer = get_n_element(&mut iter, 10).unwrap();
+        check_format(&buffer)?;
+    };
+
+    // key area
+    let key = {
+        let buffer_length = get_n_element(&mut iter, 4).unwrap();
+        let length = get_length(&buffer_length)?;
+        get_n_element(&mut iter, length as usize).unwrap()
+    };
+
+    // modify area
+    let modify = {
+        let buffer_length = get_n_element(&mut iter, 4).unwrap();
+        let length = get_length(&buffer_length)?;
+        get_n_element(&mut iter, length as usize).unwrap()
+    };
+
+    // crc area
+    let crc = get_n_element(&mut iter, 9).unwrap();
+
+    // image area
+    let image = {
+        let buffer_length = get_n_element(&mut iter, 4).unwrap();
+        let length = get_length(&buffer_length)?;
+        get_n_element(&mut iter, length as usize).unwrap()
+    };
+
+    // data area
+    let data: Vec<u8> = iter.as_slice().to_vec();
+
+    Ok(BlockInfo {key, modify, crc, image, data})
+}
+
+pub fn get_data(key: &[u8], data: &[u8]) -> Vec<u8> {
+    let key_box = build_key_box(&key);
+    data.chunks(0x8000)
+        .map(|i| i.iter().enumerate().map(|(index, item)| {
+            let j = (index + 1) & 0xff;
+            item ^ key_box[(key_box[j] + key_box[(key_box[j] + j) & 0xff]) & 0xff] as u8
+        }))
+        .flatten()
+        .collect::<Vec<u8>>()
 }
 
 pub fn get_key(buffer: &[u8]) -> Result<Vec<u8>, Error> {
@@ -89,23 +161,4 @@ pub fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
     let modify = serde_json::from_str::<Modify>(&modify_str)
         .map_err(|_| Error::from(ErrorKind::InvalidFile))?;
     Ok(modify)
-}
-
-pub fn get_image(buffer: Vec<u8>) -> Result<Vec<u8>, Error> {
-    Ok(buffer)
-}
-
-pub fn build_key_box(key: &[u8]) -> Vec<usize> {
-    let mut last_byte = 0;
-    let mut key_box = (0..256).collect::<Vec<usize>>();
-    let mut offsets = (0..key.len()).cycle();
-
-    for i in 0..256 {
-        let offset = offsets.next().unwrap();
-        let c = (key_box[i] + last_byte + key[offset] as usize) & 0xff;
-        key_box.swap(i, c);
-        last_byte = c;
-    }
-
-    key_box
 }
