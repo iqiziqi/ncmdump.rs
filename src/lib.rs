@@ -3,8 +3,8 @@ extern crate base64;
 extern crate block_modes;
 extern crate serde;
 
-mod error;
-mod tools;
+pub mod error;
+pub mod tools;
 
 use crate::tools::{
     get_blocks,
@@ -13,10 +13,10 @@ use crate::tools::{
     get_data,
 };
 
-pub use tools::{Modify};
-pub use error::{Error, ErrorKind};
+use tools::{Modify};
+use error::{Error};
 
-pub fn process(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn decode(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
     let blocks = get_blocks(file_buffer)?;
     let key = get_key(&blocks.key)?;
     let data = get_data(&key, &blocks.data);
