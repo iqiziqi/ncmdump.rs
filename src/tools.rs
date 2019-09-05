@@ -32,11 +32,14 @@ pub struct Modify {
     #[serde(rename = "musicId")]
     pub id: u64,
     pub album: String,
-    pub alias: Vec<String>,
     pub artist: Vec<(String, u64)>,
     pub bitrate: u64,
     pub duration: u64,
     pub format: String,
+
+    #[serde(rename = "mvId")]
+    pub mv_id: Option<u64>,
+    pub alias: Option<Vec<String>>,
 }
 
 pub struct BlockInfo {
@@ -66,7 +69,8 @@ fn decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, Error> {
 
 fn check_format(buffer: &[u8]) -> Result<(), Error> {
     let (buf, _) = buffer.split_at(std::mem::size_of::<u64>());
-    if u64::from_ne_bytes(buf.try_into().unwrap()) != 0x4d41_4446_4e45_5443 {
+    let temp = u64::from_ne_bytes(buf.try_into().unwrap());
+    if temp != 0x4d41_4446_4e45_5443 {
         return Err(Error::from(ErrorKind::InvalidFile));
     }
     Ok(())
