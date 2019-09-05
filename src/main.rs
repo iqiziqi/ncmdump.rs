@@ -12,16 +12,22 @@ use ncmdump::{decode, get_info};
 #[derive(Debug, StructOpt)]
 #[structopt(name = "ncmdump")]
 struct Opt {
-
-    /// This option can specified the files.
+    /// Specified the files
     #[structopt(short = "f", long = "files", parse(from_os_str))]
     files: Vec<PathBuf>,
+
+    /// Verbosely list files processing
+    #[structopt(short = "v", long = "verbose")]
+    verbose: bool,
 }
 
 fn main() -> Result<()> {
-    let Opt { files } = Opt::from_args();
+    let Opt { files, verbose } = Opt::from_args();
 
     for file in files {
+        if verbose {
+            println!("{}", file.file_name().unwrap().to_str().unwrap());
+        }
         let buffer = read(&file)?;
         let Modify { format, .. } = match get_info(&buffer) {
             Ok(i) => i,
