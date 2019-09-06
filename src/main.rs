@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::process::exit;
 use structopt::StructOpt;
 
-use ncmdump::tools::{Modify};
+use ncmdump::utils::Modify;
 use ncmdump::{decode, get_info};
 
 #[derive(Debug, StructOpt)]
