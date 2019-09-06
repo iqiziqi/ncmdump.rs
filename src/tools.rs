@@ -163,6 +163,6 @@ pub fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
     let modify_str = String::from_utf8(decrypt(&modify_key, &MODIFY_KEY)?[6..].to_vec())
         .map_err(|_| Error::from(ErrorKind::InvalidFile))?;
     let modify = serde_json::from_str::<Modify>(&modify_str)
-        .map_err(|_| Error::from(ErrorKind::InvalidFile))?;
+        .map_err(|_| Error::from(ErrorKind::ModifyDecodeError))?;
     Ok(modify)
 }

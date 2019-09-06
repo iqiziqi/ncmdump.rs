@@ -1,3 +1,4 @@
+use std::error;
 use std::fmt::{Display, Formatter, Result};
 
 #[derive(Debug)]
@@ -17,6 +18,8 @@ impl From<ErrorKind> for Error {
     }
 }
 
+impl error::Error for Error {}
+
 impl Error {
     pub fn new(kind: ErrorKind) -> Error {
         Error { kind }
@@ -29,7 +32,7 @@ impl Error {
     pub fn msg(&self) -> &str {
         match self.kind() {
             ErrorKind::InvalidFile => "Invalid file",
-            ErrorKind::PermissionDenied => "Permission denied",
+            ErrorKind::ModifyDecodeError => "Can't decode modify",
             ErrorKind::Unknown => "Unknown error",
         }
     }
@@ -38,6 +41,6 @@ impl Error {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ErrorKind {
     InvalidFile,
-    PermissionDenied,
+    ModifyDecodeError,
     Unknown,
 }
