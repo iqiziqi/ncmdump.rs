@@ -3,11 +3,11 @@ extern crate serde;
 
 use std::convert::TryInto;
 use std::slice::Iter;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, ErrorKind};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Modify {
     #[serde(rename = "musicName")]
     pub name: String,

@@ -1,4 +1,5 @@
 extern crate ncmdump;
+extern crate serde_json;
 extern crate structopt;
 
 use std::error::Error;
@@ -7,7 +8,6 @@ use std::path::PathBuf;
 use std::process::exit;
 use structopt::StructOpt;
 
-use ncmdump::utils::Modify;
 use ncmdump::{decode, get_info};
 
 #[derive(Debug, StructOpt)]
@@ -20,18 +20,32 @@ struct Opt {
     /// Verbosely list files processing
     #[structopt(short = "v", long = "verbose")]
     verbose: bool,
+
+    /// Only show the information of files
+    #[structopt(short = "i", long = "info")]
+    info: bool,
+}
+
+fn get_output(file_path: &PathBuf, format: &str) -> PathBuf {
+    let mut path = PathBuf::from(file_path);
+    path.set_extension(format);
+    path
 }
 
 fn run(options: Opt) -> Result<(), Box<dyn Error>> {
-    let Opt { files, verbose } = options;
+    let Opt { files, verbose, info } = options;
     for file in files {
         if verbose {
-            println!("{}", file.file_name().unwrap().to_str().unwrap());
+            let file_name = file.file_name().unwrap().to_str().unwrap();
+            println!("{}", file_name);
         }
         let buffer = read(&file)?;
-        let Modify { format, .. } = get_info(&buffer)?;
-        let mut output_file = PathBuf::from(&file);
-        output_file.set_extension(format);
+        let modify = get_info(&buffer)?;
+        if info {
+            println!("{}", serde_json::to_string_pretty(&modify)?);
+            exit(0);
+        }
+        let output_file = get_output(&file, &modify.format);
         let data = decode(&buffer)?;
         write(output_file, data)?;
     }
