@@ -17,6 +17,10 @@ struct Opt {
     #[structopt(short = "f", long = "files", parse(from_os_str))]
     files: Vec<PathBuf>,
 
+    /// Specified the output directory
+    #[structopt(short = "o", long = "output", parse(from_os_str))]
+    output: Option<PathBuf>,
+
     /// Verbosely list files processing
     #[structopt(short = "v", long = "verbose")]
     verbose: bool,
@@ -26,14 +30,17 @@ struct Opt {
     info: bool,
 }
 
-fn get_output(file_path: &PathBuf, format: &str) -> PathBuf {
-    let mut path = PathBuf::from(file_path);
-    path.set_extension(format);
-    path
+fn get_output(file_path: &PathBuf, format: &str, output: &Option<PathBuf>) -> PathBuf {
+    let parent = match output {
+        None => file_path.parent().unwrap(),
+        Some(p) => p,
+    };
+    let file_name = file_path.file_stem().unwrap();
+    parent.join(file_name).with_extension(format)
 }
 
 fn run(options: Opt) -> Result<(), Box<dyn Error>> {
-    let Opt { files, verbose, info } = options;
+    let Opt { files, output, verbose, info } = options;
     for file in files {
         if verbose {
             let file_name = file.file_name().unwrap().to_str().unwrap();
@@ -45,7 +52,8 @@ fn run(options: Opt) -> Result<(), Box<dyn Error>> {
             println!("{}", serde_json::to_string_pretty(&modify)?);
             exit(0);
         }
-        let output_file = get_output(&file, &modify.format);
+        let output_file = get_output(&file, &modify.format, &output);
+        println!("{:?}", output_file);
         let data = decode(&buffer)?;
         write(output_file, data)?;
     }
