@@ -40,7 +40,13 @@ fn get_output(file_path: &PathBuf, format: &str, output: &Option<PathBuf>) -> Pa
 }
 
 fn run(options: Opt) -> Result<(), Box<dyn Error>> {
-    let Opt { files, output, verbose, info } = options;
+    let Opt {
+        files,
+        output,
+        verbose,
+        info,
+    } = options;
+
     for file in files {
         if verbose {
             let file_name = file.file_name().unwrap().to_str().unwrap();
