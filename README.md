@@ -22,9 +22,11 @@ USAGE:
 
 FLAGS:
     -h, --help       Prints help information
+    -i, --info       Only show the information of files
     -V, --version    Prints version information
     -v, --verbose    Verbosely list files processing
 
 OPTIONS:
     -f, --files <files>...    Specified the files
+    -o, --output <output>     Specified the output directory
 ```
