@@ -59,7 +59,6 @@ fn run(options: Opt) -> Result<(), Box<dyn Error>> {
             exit(0);
         }
         let output_file = get_output(&file, &modify.format, &output);
-        println!("{:?}", output_file);
         let data = decode(&buffer)?;
         write(output_file, data)?;
     }
