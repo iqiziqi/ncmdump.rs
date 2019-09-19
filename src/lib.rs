@@ -107,6 +107,28 @@ fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
     Ok(modify)
 }
 
+/// Decode the buffer of ncm file.
+/// Return a Result containing a Vec<u8>.
+/// You can write it to a file.
+///
+/// # Example
+///
+/// ```rust
+/// extern crate ncm;
+///
+/// use std::error::Error;
+/// use std::fs::{read, write};
+/// use std::path::Path;
+///
+/// fn main() -> Result<(), Box<dyn Error>> {
+///     let input_path = Path::new("input");
+///     let output_path = Path::new("output");
+///     let buffer = read(&input_path)?;
+///     let data = ncm::decode(&buffer)?;
+///     write(&output_path, data)?;
+///     Ok(())
+/// }
+/// ```
 pub fn decode(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
     let blocks = get_blocks(file_buffer)?;
     let key = get_key(&blocks.key)?;
@@ -114,6 +136,26 @@ pub fn decode(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
     Ok(data)
 }
 
+/// Get modify information from a buffer of ncm file.
+/// Return a Result containing a Modify struct.
+///
+/// # Example
+///
+/// ```rust
+/// extern crate ncm;
+///
+/// use std::error::Error;
+/// use std::fs::read;
+/// use std::path::Path;
+///
+/// fn main() -> Result<(), Box<dyn Error>> {
+///     let input_path = Path::new("input");
+///     let buffer = read(&input_path)?;
+///     let modify = ncm::get_info(&buffer)?;
+///     println!("{:?}", modify);
+///     Ok(())
+/// }
+/// ```
 pub fn get_info(file_buffer: &[u8]) -> Result<Modify, Error> {
     let blocks = get_blocks(file_buffer)?;
     let modify = get_modify(&blocks.modify)?;
