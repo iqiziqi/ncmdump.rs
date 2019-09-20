@@ -7,5 +7,7 @@
 .idea
 
 # Test file
-**/*.ncm
 **/*.flac
+**/*.mp3
+**/*.ncm
+!tests/test.ncm
