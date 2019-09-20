@@ -4,6 +4,13 @@ version = "0.1.0"
 authors = ["haiyoune7 <haiyoune7@outlook.com>"]
 edition = "2018"
 
+description = "Netease cloud music copyright protection file dump."
+homepage = "https://github.com/haiyoune7/ncmdump.rs"
+repository = "https://github.com/haiyoune7/ncmdump.rs"
+license = "MIT"
+readme = "README.md"
+keywords = ["ncm", "music"]
+
 [dependencies]
 aes = "0.3.2"
 aes-soft = "0.3.3"
