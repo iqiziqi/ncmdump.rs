@@ -65,7 +65,13 @@ mod tests {
     #[test]
     fn test_get_length() {
         assert_eq!(get_length(&[0x00, 0x00, 0x00, 0x00]).unwrap(), 0);
-        assert_eq!(get_length(&[0x4d, 0x41, 0x44, 0x46]).unwrap(), 1_178_878_285);
-        assert_eq!(get_length(&[0x4e, 0x45, 0x54, 0x43]).unwrap(), 1_129_596_238);
+        assert_eq!(
+            get_length(&[0x4d, 0x41, 0x44, 0x46]).unwrap(),
+            1_178_878_285
+        );
+        assert_eq!(
+            get_length(&[0x4e, 0x45, 0x54, 0x43]).unwrap(),
+            1_129_596_238
+        );
     }
 }

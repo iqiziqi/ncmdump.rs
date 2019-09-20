@@ -5,7 +5,7 @@ extern crate serde;
 
 mod decrypt;
 pub mod error;
-pub mod utils;
+mod utils;
 
 use serde::{Deserialize, Serialize};
 
@@ -113,8 +113,8 @@ fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
 ///
 /// # Example
 ///
-/// ```rust
-/// extern crate ncm;
+/// ```ignore
+/// extern crate ncmdump;
 ///
 /// use std::error::Error;
 /// use std::fs::{read, write};
@@ -124,7 +124,7 @@ fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
 ///     let input_path = Path::new("input");
 ///     let output_path = Path::new("output");
 ///     let buffer = read(&input_path)?;
-///     let data = ncm::decode(&buffer)?;
+///     let data = ncmdump::decode(&buffer)?;
 ///     write(&output_path, data)?;
 ///     Ok(())
 /// }
@@ -141,8 +141,8 @@ pub fn decode(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
 ///
 /// # Example
 ///
-/// ```rust
-/// extern crate ncm;
+/// ```ignore
+/// extern crate ncmdump;
 ///
 /// use std::error::Error;
 /// use std::fs::read;
@@ -151,7 +151,7 @@ pub fn decode(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
 /// fn main() -> Result<(), Box<dyn Error>> {
 ///     let input_path = Path::new("input");
 ///     let buffer = read(&input_path)?;
-///     let modify = ncm::get_info(&buffer)?;
+///     let modify = ncmdump::get_info(&buffer)?;
 ///     println!("{:?}", modify);
 ///     Ok(())
 /// }
