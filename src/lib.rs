@@ -1,3 +1,40 @@
+//! This is a simple way to decrypt the ncm file.
+//!
+//! # Install
+//!
+//! You can add this to your `Cargo.toml`:
+//!
+//! ```toml
+//! ncmdump = 0.1.0
+//! ```
+//!
+//! Also, you can use this command to install this crate,
+//! if you installed [cargo-edit](https://github.com/killercup/cargo-edit)
+//!
+//! ```shell
+//! cargo add ncmdump
+//! ```
+//!
+//! # Usage
+//!
+//! ```
+//! extern crate ncmdump;
+//!
+//! use std::error::Error;
+//! use std::fs::{read, write};
+//! use std::path::Path;
+//!
+//! fn main() -> Result<(), Box<dyn Error>> {
+//!     let input_path = Path::new("tests/test.ncm");
+//!     let output_path = Path::new("tests/test.flac");
+//!     let buffer = read(&input_path)?;
+//!     let data = ncmdump::decode(&buffer)?;
+//!     write(&output_path, data)?;
+//!     Ok(())
+//! }
+//! ```
+//!
+
 extern crate aes_soft;
 extern crate base64;
 extern crate block_modes;
@@ -16,17 +53,26 @@ use crate::utils::{check_format, get_length, get_n_element};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Modify {
+    /// The name of music
     #[serde(rename = "musicName")]
     pub name: String,
+    /// The id of music
     #[serde(rename = "musicId")]
     pub id: u64,
+    /// The album of music, it's a url
     pub album: String,
+    /// The artist of music, first item is name, second item is id
     pub artist: Vec<(String, u64)>,
+    // The bit rate of music
     pub bitrate: u64,
+    /// The duration of music
     pub duration: u64,
+    /// The format of music, is may be 'mp3' or 'flac'
     pub format: String,
+    /// The id of MV
     #[serde(rename = "mvId")]
     pub mv_id: Option<u64>,
+    /// The alias of music
     pub alias: Option<Vec<String>>,
 }
 
