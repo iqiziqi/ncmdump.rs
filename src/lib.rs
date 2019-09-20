@@ -4,8 +4,9 @@ extern crate block_modes;
 extern crate serde;
 
 mod decrypt;
-pub mod error;
 mod utils;
+
+pub mod error;
 
 use serde::{Deserialize, Serialize};
 
@@ -24,13 +25,13 @@ pub struct Modify {
     pub bitrate: u64,
     pub duration: u64,
     pub format: String,
-
     #[serde(rename = "mvId")]
     pub mv_id: Option<u64>,
     pub alias: Option<Vec<String>>,
 }
 
-pub struct BlockInfo {
+#[derive(Debug)]
+struct BlockInfo {
     pub key: Vec<u8>,
     pub modify: Vec<u8>,
     pub crc: Vec<u8>,
@@ -113,7 +114,7 @@ fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// extern crate ncmdump;
 ///
 /// use std::error::Error;
@@ -121,8 +122,8 @@ fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
 /// use std::path::Path;
 ///
 /// fn main() -> Result<(), Box<dyn Error>> {
-///     let input_path = Path::new("input");
-///     let output_path = Path::new("output");
+///     let input_path = Path::new("tests/test.ncm");
+///     let output_path = Path::new("tests/test.flac");
 ///     let buffer = read(&input_path)?;
 ///     let data = ncmdump::decode(&buffer)?;
 ///     write(&output_path, data)?;
@@ -141,7 +142,7 @@ pub fn decode(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// extern crate ncmdump;
 ///
 /// use std::error::Error;
@@ -149,7 +150,7 @@ pub fn decode(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
 /// use std::path::Path;
 ///
 /// fn main() -> Result<(), Box<dyn Error>> {
-///     let input_path = Path::new("input");
+///     let input_path = Path::new("tests/test.ncm");
 ///     let buffer = read(&input_path)?;
 ///     let modify = ncmdump::get_info(&buffer)?;
 ///     println!("{:?}", modify);
