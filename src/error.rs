@@ -26,7 +26,6 @@ impl From<ErrorKind> for Error {
 impl error::Error for Error {}
 
 impl Error {
-
     /// Create a new Error from a kind of error.
     ///
     /// # Example
