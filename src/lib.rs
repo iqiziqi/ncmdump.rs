@@ -28,7 +28,7 @@
 //!     let input_path = Path::new("tests/test.ncm");
 //!     let output_path = Path::new("tests/test.flac");
 //!     let buffer = read(&input_path)?;
-//!     let data = ncmdump::decode(&buffer)?;
+//!     let data = ncmdump::convert(&buffer)?;
 //!     write(&output_path, data)?;
 //!     Ok(())
 //! }
@@ -80,7 +80,6 @@ pub struct Modify {
 struct BlockInfo {
     pub key: Vec<u8>,
     pub modify: Vec<u8>,
-    pub crc: Vec<u8>,
     pub image: Vec<u8>,
     pub data: Vec<u8>,
 }
@@ -104,8 +103,8 @@ fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo, Error> {
         let length = get_length(&buffer_length)?;
         get_n_element(&mut iter, length as usize).unwrap()
     };
-    // crc area
-    let crc = get_n_element(&mut iter, 9).unwrap();
+    // blank area
+    get_n_element(&mut iter, 9).unwrap();
     // image area
     let image = {
         let buffer_length = get_n_element(&mut iter, 4).unwrap();
@@ -118,7 +117,6 @@ fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo, Error> {
     Ok(BlockInfo {
         key,
         modify,
-        crc,
         image,
         data,
     })
@@ -171,12 +169,12 @@ fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
 ///     let input_path = Path::new("tests/test.ncm");
 ///     let output_path = Path::new("tests/test.flac");
 ///     let buffer = read(&input_path)?;
-///     let data = ncmdump::decode(&buffer)?;
+///     let data = ncmdump::convert(&buffer)?;
 ///     write(&output_path, data)?;
 ///     Ok(())
 /// }
 /// ```
-pub fn decode(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn convert(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
     let blocks = get_blocks(file_buffer)?;
     let key = get_key(&blocks.key)?;
     let data = get_data(&key, &blocks.data);

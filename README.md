@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let input_path = Path::new("tests/test.ncm");
     let output_path = Path::new("tests/test.flac");
     let buffer = read(&input_path)?;
-    let data = ncmdump::decode(&buffer)?;
+    let data = ncmdump::convert(&buffer)?;
     write(&output_path, data)?;
     Ok(())
 }

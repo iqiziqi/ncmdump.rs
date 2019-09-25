@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::process::exit;
 use structopt::StructOpt;
 
-use ncmdump::{decode, get_info};
+use ncmdump::{convert, get_info};
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "ncmdump")]
@@ -59,7 +59,7 @@ fn run(options: Opt) -> Result<(), Box<dyn Error>> {
             exit(0);
         }
         let output_file = get_output(&file, &modify.format, &output);
-        let data = decode(&buffer)?;
+        let data = convert(&buffer)?;
         write(output_file, data)?;
     }
     Ok(())
