@@ -1,0 +1,31 @@
+name: deploy
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  package:
+    runs-on: ubuntu-18.04
+    step:
+      - uses: actions/checkout@v1
+      - name: install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: package
+        uses: actions-rs/cargo@v1
+        with:
+          command: package
+      - name: list packaged files
+        uses: actions-rs/cargo@v1
+        with:
+          command: package
+          args: --list
+      - name: publish
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{secrets.crate_token}}

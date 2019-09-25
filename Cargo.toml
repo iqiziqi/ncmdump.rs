@@ -10,6 +10,11 @@ repository = "https://github.com/haiyoune7/ncmdump.rs"
 license = "MIT"
 readme = "README.md"
 keywords = ["ncm", "music"]
+exclude = [
+    ".editorconfig",
+    ".github/**/*",
+    "*.ncm"
+]
 
 [dependencies]
 aes = "0.3.2"
