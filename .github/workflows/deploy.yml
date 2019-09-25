@@ -21,11 +21,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: package
+          args: --allow-dirty
       - name: list packaged files
         uses: actions-rs/cargo@v1
         with:
           command: package
-          args: --list
+          args: --allow-dirty --list
       - name: publish
         uses: actions-rs/cargo@v1
         with:
