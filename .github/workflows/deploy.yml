@@ -8,7 +8,7 @@ on:
 jobs:
   package:
     runs-on: ubuntu-18.04
-    step:
+    steps:
       - uses: actions/checkout@v1
       - name: install toolchain
         uses: actions-rs/toolchain@v1
