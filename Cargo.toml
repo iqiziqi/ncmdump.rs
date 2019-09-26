@@ -6,6 +6,7 @@ edition = "2018"
 
 description = "Netease cloud music copyright protection file dump."
 homepage = "https://github.com/haiyoune7/ncmdump.rs"
+documentation = "https://docs.rs/ncmdump"
 repository = "https://github.com/haiyoune7/ncmdump.rs"
 license = "MIT"
 readme = "README.md"
