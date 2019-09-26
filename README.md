@@ -1,5 +1,10 @@
 # Ncmdump.rs
 
+![](https://github.com/iqiziqi/ncmdump.rs/workflows/test/badge.svg)
+![](https://github.com/iqiziqi/ncmdump.rs/workflows/deploy/badge.svg)
+![](https://img.shields.io/crates/v/ncmdump)
+![](https://img.shields.io/crates/d/ncmdump)
+
 ## Credit
 
 ### Origin
@@ -66,3 +71,5 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 ```
+
+For more usage, please check the [document](https://docs.rs/ncmdump).
