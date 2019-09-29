@@ -1,7 +1,7 @@
 [package]
 name = "ncmdump"
 version = "0.1.0"
-authors = ["haiyoune7 <haiyoune7@outlook.com>"]
+authors = ["iqiziqi <iqiziqi@outlook.com>"]
 edition = "2018"
 
 description = "Netease cloud music copyright protection file dump."
