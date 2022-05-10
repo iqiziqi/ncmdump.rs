@@ -34,17 +34,12 @@
 //! }
 //! ```
 //!
-
-extern crate aes_soft;
-extern crate base64;
-extern crate block_modes;
-extern crate serde;
-
 mod decrypt;
 mod utils;
 
 pub mod error;
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::decrypt::{build_key_box, decrypt, HEADER_KEY, MODIFY_KEY};
@@ -123,25 +118,24 @@ fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo, Error> {
 }
 
 fn get_data(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let key_box = build_key_box(&key);
+    let key_box = build_key_box(key);
     data.chunks(0x8000)
-        .map(|i| {
+        .flat_map(|i| {
             i.iter().enumerate().map(|(index, item)| {
                 let j = (index + 1) & 0xff;
                 item ^ key_box[(key_box[j] + key_box[(key_box[j] + j) & 0xff]) & 0xff] as u8
             })
         })
-        .flatten()
         .collect::<Vec<u8>>()
 }
 
-fn get_key(buffer: &[u8]) -> Result<Vec<u8>, Error> {
+fn get_key(buffer: &[u8]) -> Result<Vec<u8>> {
     let key_buffer = buffer.iter().map(|byte| byte ^ 0x64).collect::<Vec<u8>>();
     let decrypt_buffer = decrypt(&key_buffer, &HEADER_KEY)?;
     Ok(decrypt_buffer[17..].to_vec())
 }
 
-fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
+fn get_modify(buffer: &[u8]) -> Result<Modify> {
     let modify_tmp = buffer.iter().map(|item| item ^ 0x63).collect::<Vec<u8>>();
     let modify_key =
         base64::decode(&modify_tmp[22..]).map_err(|_| Error::from(ErrorKind::InvalidFile))?;
@@ -174,7 +168,7 @@ fn get_modify(buffer: &[u8]) -> Result<Modify, Error> {
 ///     Ok(())
 /// }
 /// ```
-pub fn convert(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn convert(file_buffer: &[u8]) -> Result<Vec<u8>> {
     let blocks = get_blocks(file_buffer)?;
     let key = get_key(&blocks.key)?;
     let data = get_data(&key, &blocks.data);
@@ -201,7 +195,7 @@ pub fn convert(file_buffer: &[u8]) -> Result<Vec<u8>, Error> {
 ///     Ok(())
 /// }
 /// ```
-pub fn get_info(file_buffer: &[u8]) -> Result<Modify, Error> {
+pub fn get_info(file_buffer: &[u8]) -> Result<Modify> {
     let blocks = get_blocks(file_buffer)?;
     let modify = get_modify(&blocks.modify)?;
     Ok(modify)

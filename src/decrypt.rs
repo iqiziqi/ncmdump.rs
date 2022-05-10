@@ -1,11 +1,7 @@
-extern crate aes_soft;
-extern crate block_modes;
-
 use aes_soft::Aes128;
+use anyhow::Result;
 use block_modes::block_padding::Pkcs7;
 use block_modes::{BlockMode, Ecb};
-
-use crate::error::Error;
 
 type Aes128Ecb = Ecb<Aes128, Pkcs7>;
 
@@ -17,9 +13,9 @@ pub static MODIFY_KEY: [u8; 16] = [
     0x23, 0x31, 0x34, 0x6C, 0x6A, 0x6B, 0x5F, 0x21, 0x5C, 0x5D, 0x26, 0x30, 0x55, 0x3C, 0x27, 0x28,
 ];
 
-pub fn decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, Error> {
-    let cipher = Aes128Ecb::new_var(&key, &[]).unwrap();
-    let result = cipher.decrypt_vec(data).unwrap();
+pub fn decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>> {
+    let cipher = Aes128Ecb::new_var(key, &[])?;
+    let result = cipher.decrypt_vec(data)?;
     Ok(result)
 }
 

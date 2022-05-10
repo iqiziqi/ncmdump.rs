@@ -20,6 +20,7 @@ exclude = [
 [dependencies]
 aes = "0.3.2"
 aes-soft = "0.3.3"
+anyhow = "1.0.57"
 block-modes = "0.3.3"
 base64 = "0.10.1"
 serde = { version = "1.0.101", features = ["derive"] }

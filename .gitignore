@@ -11,3 +11,4 @@
 **/*.mp3
 **/*.ncm
 !tests/test.ncm
+src/decrypt.rs
