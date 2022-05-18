@@ -18,11 +18,10 @@ exclude = [
 ]
 
 [dependencies]
-aes = "0.3.2"
-aes-soft = "0.3.3"
+aes = "0.8.1"
 anyhow = "1.0.57"
-block-modes = "0.3.3"
-base64 = "0.10.1"
+base64 = "0.20.0-alpha.1"
+cipher = { version = "0.4.3", features = ["alloc", "block-padding"] }
 serde = { version = "1.0.101", features = ["derive"] }
 serde_json = "1.0.40"
 structopt = "0.3.2"

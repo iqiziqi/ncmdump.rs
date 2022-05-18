@@ -18,13 +18,13 @@
 //! # Usage
 //!
 //! ```
-//! extern crate ncmdump;
-//!
 //! use std::error::Error;
 //! use std::fs::{read, write};
 //! use std::path::Path;
 //!
-//! fn main() -> Result<(), Box<dyn Error>> {
+//! use anyhow::Result;
+//!
+//! fn main() -> Result<()> {
 //!     let input_path = Path::new("tests/test.ncm");
 //!     let output_path = Path::new("tests/test.flac");
 //!     let buffer = read(&input_path)?;
@@ -71,7 +71,6 @@ pub struct Modify {
     pub alias: Option<Vec<String>>,
 }
 
-#[derive(Debug)]
 struct BlockInfo {
     pub key: Vec<u8>,
     pub modify: Vec<u8>,
@@ -153,13 +152,13 @@ fn get_modify(buffer: &[u8]) -> Result<Modify> {
 /// # Example
 ///
 /// ```
-/// extern crate ncmdump;
-///
 /// use std::error::Error;
 /// use std::fs::{read, write};
 /// use std::path::Path;
 ///
-/// fn main() -> Result<(), Box<dyn Error>> {
+/// use anyhow::Result;
+///
+/// fn main() -> Result<()> {
 ///     let input_path = Path::new("tests/test.ncm");
 ///     let output_path = Path::new("tests/test.flac");
 ///     let buffer = read(&input_path)?;
@@ -181,13 +180,13 @@ pub fn convert(file_buffer: &[u8]) -> Result<Vec<u8>> {
 /// # Example
 ///
 /// ```
-/// extern crate ncmdump;
-///
 /// use std::error::Error;
 /// use std::fs::read;
 /// use std::path::Path;
 ///
-/// fn main() -> Result<(), Box<dyn Error>> {
+/// use anyhow::Result;
+///
+/// fn main() -> Result<()> {
 ///     let input_path = Path::new("tests/test.ncm");
 ///     let buffer = read(&input_path)?;
 ///     let modify = ncmdump::get_info(&buffer)?;
