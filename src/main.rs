@@ -1,11 +1,8 @@
-extern crate ncmdump;
-extern crate serde_json;
-extern crate structopt;
-
-use std::error::Error;
 use std::fs::{read, write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::exit;
+
+use anyhow::Result;
 use structopt::StructOpt;
 
 use ncmdump::{convert, get_info};
@@ -30,16 +27,17 @@ struct Opt {
     info: bool,
 }
 
-fn get_output(file_path: &PathBuf, format: &str, output: &Option<PathBuf>) -> PathBuf {
+fn get_output(file_path: &Path, format: &str, output: &Option<PathBuf>) -> Result<PathBuf> {
     let parent = match output {
         None => file_path.parent().unwrap(),
         Some(p) => p,
     };
     let file_name = file_path.file_stem().unwrap();
-    parent.join(file_name).with_extension(format)
+    let path = parent.join(file_name).with_extension(format);
+    Ok(path)
 }
 
-fn run(options: Opt) -> Result<(), Box<dyn Error>> {
+fn run(options: Opt) -> Result<()> {
     let Opt {
         files,
         output,
@@ -50,7 +48,7 @@ fn run(options: Opt) -> Result<(), Box<dyn Error>> {
     for file in files {
         if verbose {
             let file_name = file.file_name().unwrap().to_str().unwrap();
-            println!("{}", file_name);
+            print!("Converting file {}", file_name);
         }
         let buffer = read(&file)?;
         let modify = get_info(&buffer)?;
@@ -58,17 +56,18 @@ fn run(options: Opt) -> Result<(), Box<dyn Error>> {
             println!("{}", serde_json::to_string_pretty(&modify)?);
             exit(0);
         }
-        let output_file = get_output(&file, &modify.format, &output);
+        let output_file = get_output(&file, &modify.format, &output)?;
         let data = convert(&buffer)?;
         write(output_file, data)?;
+        if verbose {
+            println!("\tcomplete!")
+        }
     }
     Ok(())
 }
 
-fn main() {
+fn main() -> Result<()> {
     let options = Opt::from_args();
-    run(options).unwrap_or_else(|err| {
-        eprintln!("Error: {}", err);
-        exit(1);
-    });
+    run(options)?;
+    Ok(())
 }

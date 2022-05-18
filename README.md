@@ -56,13 +56,10 @@ cargo add ncmdump
 ### Simple Usage
 
 ```rust
-extern crate ncmdump;
-
-use std::error::Error;
 use std::fs::{read, write};
 use std::path::Path;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let input_path = Path::new("tests/test.ncm");
     let output_path = Path::new("tests/test.flac");
     let buffer = read(&input_path)?;

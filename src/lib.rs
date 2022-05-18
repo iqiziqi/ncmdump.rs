@@ -18,7 +18,6 @@
 //! # Usage
 //!
 //! ```
-//! use std::error::Error;
 //! use std::fs::{read, write};
 //! use std::path::Path;
 //!
@@ -43,8 +42,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::decrypt::{build_key_box, decrypt, HEADER_KEY, MODIFY_KEY};
-use crate::error::{Error, ErrorKind};
-use crate::utils::{check_format, get_length, get_n_element};
+use crate::error::Errors;
+use crate::utils::{check_format, get_length};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Modify {
@@ -71,42 +70,34 @@ pub struct Modify {
     pub alias: Option<Vec<String>>,
 }
 
-struct BlockInfo {
-    pub key: Vec<u8>,
-    pub modify: Vec<u8>,
-    pub image: Vec<u8>,
-    pub data: Vec<u8>,
+pub struct BlockInfo<'a> {
+    pub key: &'a [u8],
+    pub modify: &'a [u8],
+    pub image: &'a [u8],
+    pub data: &'a [u8],
 }
 
-fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo, Error> {
-    let mut iter = file_buffer.iter();
-    // format area
-    {
-        let buffer = get_n_element(&mut iter, 10).unwrap();
-        check_format(&buffer)?;
-    };
+pub fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo> {
+    let (format_buffer, buffer) = file_buffer.split_at(10);
+    check_format(format_buffer)?;
+
     // key area
-    let key = {
-        let buffer_length = get_n_element(&mut iter, 4).unwrap();
-        let length = get_length(&buffer_length)?;
-        get_n_element(&mut iter, length as usize).unwrap()
-    };
+    let (length_buffer, buffer) = buffer.split_at(4);
+    let length = get_length(length_buffer)?;
+    let (key, buffer) = buffer.split_at(length);
+
     // modify area
-    let modify = {
-        let buffer_length = get_n_element(&mut iter, 4).unwrap();
-        let length = get_length(&buffer_length)?;
-        get_n_element(&mut iter, length as usize).unwrap()
-    };
+    let (length_buffer, buffer) = buffer.split_at(4);
+    let length = get_length(length_buffer)?;
+    let (modify, buffer) = buffer.split_at(length);
+
     // blank area
-    get_n_element(&mut iter, 9).unwrap();
+    let (_, buffer) = buffer.split_at(9);
+
     // image area
-    let image = {
-        let buffer_length = get_n_element(&mut iter, 4).unwrap();
-        let length = get_length(&buffer_length)?;
-        get_n_element(&mut iter, length as usize).unwrap()
-    };
-    // data area
-    let data: Vec<u8> = iter.as_slice().to_vec();
+    let (buffer_length, buffer) = buffer.split_at(4);
+    let length = get_length(buffer_length)?;
+    let (image, data) = buffer.split_at(length);
 
     Ok(BlockInfo {
         key,
@@ -116,7 +107,7 @@ fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo, Error> {
     })
 }
 
-fn get_data(key: &[u8], data: &[u8]) -> Vec<u8> {
+pub fn get_data(key: &[u8], data: &[u8]) -> Vec<u8> {
     let key_box = build_key_box(key);
     data.chunks(0x8000)
         .flat_map(|i| {
@@ -128,31 +119,49 @@ fn get_data(key: &[u8], data: &[u8]) -> Vec<u8> {
         .collect::<Vec<u8>>()
 }
 
-fn get_key(buffer: &[u8]) -> Result<Vec<u8>> {
+pub fn get_key(buffer: &[u8]) -> Result<Vec<u8>> {
     let key_buffer = buffer.iter().map(|byte| byte ^ 0x64).collect::<Vec<u8>>();
     let decrypt_buffer = decrypt(&key_buffer, &HEADER_KEY)?;
     Ok(decrypt_buffer[17..].to_vec())
 }
 
-fn get_modify(buffer: &[u8]) -> Result<Modify> {
+/// Decode the modify buffer and just return the file modify.
+///
+/// # Example
+///
+/// ```rust
+/// use std::fs::{read, write};
+/// use std::path::Path;
+///
+/// use anyhow::Result;
+///
+/// fn main() -> Result<()> {
+///     let file_path = Path::new("tests/test.ncm");
+///     let buffer = read(&file_path)?;
+///     let blocks = ncmdump::get_blocks(&buffer)?;
+///     let modify = ncmdump::get_modify(blocks.modify)?;
+///     println!("{:?}", modify);
+///     Ok(())
+/// }
+/// ```
+pub fn get_modify(buffer: &[u8]) -> Result<Modify> {
     let modify_tmp = buffer.iter().map(|item| item ^ 0x63).collect::<Vec<u8>>();
-    let modify_key =
-        base64::decode(&modify_tmp[22..]).map_err(|_| Error::from(ErrorKind::InvalidFile))?;
-    let modify_str = String::from_utf8(decrypt(&modify_key, &MODIFY_KEY)?[6..].to_vec())
-        .map_err(|_| Error::from(ErrorKind::InvalidFile))?;
-    let modify = serde_json::from_str::<Modify>(&modify_str)
-        .map_err(|_| Error::from(ErrorKind::ModifyDecodeError))?;
+    let modify_key = base64::decode(&modify_tmp[22..]).map_err(|_| Errors::InvalidFile)?;
+    let modify_data = decrypt(&modify_key, &MODIFY_KEY)?;
+    let modify_str =
+        String::from_utf8(modify_data[6..].to_vec()).map_err(|_| Errors::ModifyDecodeError)?;
+    let modify =
+        serde_json::from_str::<Modify>(&modify_str).map_err(|_| Errors::ModifyDecodeError)?;
     Ok(modify)
 }
 
-/// Decode the buffer of ncm file.
+/// The wrap of `get_data`. Decode the buffer of ncm file.
 /// Return a Result containing a Vec<u8>.
 /// You can write it to a file.
 ///
 /// # Example
 ///
 /// ```
-/// use std::error::Error;
 /// use std::fs::{read, write};
 /// use std::path::Path;
 ///
@@ -169,18 +178,17 @@ fn get_modify(buffer: &[u8]) -> Result<Modify> {
 /// ```
 pub fn convert(file_buffer: &[u8]) -> Result<Vec<u8>> {
     let blocks = get_blocks(file_buffer)?;
-    let key = get_key(&blocks.key)?;
-    let data = get_data(&key, &blocks.data);
+    let key = get_key(blocks.key)?;
+    let data = get_data(&key, blocks.data);
     Ok(data)
 }
 
-/// Get modify information from a buffer of ncm file.
+/// The wrap of `get_modify`. Get modify information from a buffer of ncm file.
 /// Return a Result containing a Modify struct.
 ///
 /// # Example
 ///
 /// ```
-/// use std::error::Error;
 /// use std::fs::read;
 /// use std::path::Path;
 ///
@@ -196,6 +204,6 @@ pub fn convert(file_buffer: &[u8]) -> Result<Vec<u8>> {
 /// ```
 pub fn get_info(file_buffer: &[u8]) -> Result<Modify> {
     let blocks = get_blocks(file_buffer)?;
-    let modify = get_modify(&blocks.modify)?;
+    let modify = get_modify(blocks.modify)?;
     Ok(modify)
 }
