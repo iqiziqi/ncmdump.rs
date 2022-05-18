@@ -45,6 +45,7 @@ use crate::decrypt::{build_key_box, decrypt, HEADER_KEY, MODIFY_KEY};
 use crate::error::Errors;
 use crate::utils::{check_format, get_length};
 
+/// The music modify information
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Modify {
     /// The name of music
@@ -70,13 +71,37 @@ pub struct Modify {
     pub alias: Option<Vec<String>>,
 }
 
+#[derive(Debug)]
+/// The block information.
 pub struct BlockInfo<'a> {
+    /// The key block
     pub key: &'a [u8],
+    /// The modify block
     pub modify: &'a [u8],
+    /// The image block
     pub image: &'a [u8],
+    /// The data block
     pub data: &'a [u8],
 }
 
+/// Get blocks by buffer
+///
+/// # Example:
+///
+/// ```rust
+/// use std::fs::{read, write};
+/// use std::path::Path;
+///
+/// use anyhow::Result;
+///
+/// fn main() -> Result<()> {
+///     let file_path = Path::new("tests/test.ncm");
+///     let buffer = read(&file_path)?;
+///     let blocks = ncmdump::get_blocks(&buffer)?;
+///     println!("{:?}", blocks);
+///     Ok(())
+/// }
+/// ```
 pub fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo> {
     let (format_buffer, buffer) = file_buffer.split_at(10);
     check_format(format_buffer)?;
@@ -107,6 +132,26 @@ pub fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo> {
     })
 }
 
+/// Get the music data.
+///
+/// # Example
+///
+/// ```rust
+/// use std::fs::read;
+/// use std::path::Path;
+///
+/// use anyhow::Result;
+///
+/// fn main() -> Result<()> {
+///     let file_path = Path::new("tests/test.ncm");
+///     let buffer = read(&file_path)?;
+///     let blocks = ncmdump::get_blocks(&buffer)?;
+///     let key = ncmdump::get_key(blocks.key)?;
+///     let result = ncmdump::get_data(blocks.data, &key);
+///     println!("{:?}", result);
+///     Ok(())
+/// }
+/// ```
 pub fn get_data(key: &[u8], data: &[u8]) -> Vec<u8> {
     let key_box = build_key_box(key);
     data.chunks(0x8000)
