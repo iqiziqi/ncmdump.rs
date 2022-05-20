@@ -1,13 +1,13 @@
 [package]
 name = "ncmdump"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["iqiziqi <iqiziqi@outlook.com>"]
-edition = "2018"
+edition = "2021"
 
 description = "Netease cloud music copyright protection file dump."
-homepage = "https://github.com/haiyoune7/ncmdump.rs"
+homepage = "https://github.com/iqiziqi/ncmdump.rs"
 documentation = "https://docs.rs/ncmdump"
-repository = "https://github.com/haiyoune7/ncmdump.rs"
+repository = "https://github.com/iqiziqi/ncmdump.rs"
 license = "MIT"
 readme = "README.md"
 keywords = ["ncm", "music"]
