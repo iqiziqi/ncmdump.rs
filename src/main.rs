@@ -1,6 +1,5 @@
 use std::fs::{read, write};
 use std::path::{Path, PathBuf};
-use std::process::exit;
 
 use anyhow::Result;
 use structopt::StructOpt;
@@ -54,7 +53,7 @@ fn run(options: Opt) -> Result<()> {
         let modify = get_info(&buffer)?;
         if info {
             println!("{}", serde_json::to_string_pretty(&modify)?);
-            exit(0);
+            continue;
         }
         let output_file = get_output(&file, &modify.format, &output)?;
         let data = convert(&buffer)?;
