@@ -2,7 +2,7 @@ use std::io::{Read, Seek, SeekFrom};
 
 use anyhow::Result;
 
-use crate::decrypt::{decrypt, HEADER_KEY, MODIFY_KEY};
+use crate::decrypt::{build_key_box, decrypt, HEADER_KEY, MODIFY_KEY};
 use crate::error::Errors;
 use crate::Modify;
 
@@ -20,6 +20,7 @@ impl<S> Ncmdump<S>
 where
     S: Read + Seek,
 {
+    /// Check the file format by header.
     fn check_format(buffer: &[u8]) -> Result<bool> {
         let (buf, _) = buffer.split_at(std::mem::size_of::<u64>());
         let temp = u64::from_ne_bytes(buf.try_into()?);
@@ -29,6 +30,7 @@ where
         Ok(true)
     }
 
+    /// Get length by byte buffer.
     fn get_length(buffer: &[u8]) -> Result<u64> {
         let bytes = buffer.try_into()?;
         let length = u32::from_ne_bytes(bytes) as u64;
@@ -106,6 +108,7 @@ where
         })
     }
 
+    /// Utils for get bytes.
     fn get_bytes(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
         let reader = self.reader.by_ref();
         let mut key = Vec::new();
@@ -114,6 +117,7 @@ where
         Ok(key)
     }
 
+    /// Utils for get key.
     pub fn get_key(&mut self) -> Result<Vec<u8>> {
         let (start, length) = self.key;
         let key = self.get_bytes(start, length)?;
@@ -154,19 +158,79 @@ where
         Ok(modify)
     }
 
-    /// Get the image bytes.
+    /// Get the image bytes from ncmdump, if it's exists.
+    ///
+    /// # Example:
+    ///
+    /// ```rust
+    /// use std::fs::File;
+    /// use std::path::Path;
+    ///
+    /// use anyhow::Result;
+    /// use ncmdump::Ncmdump;
+    ///
+    /// fn main() -> Result<()> {
+    ///     use std::io::Write;
+    /// let file = File::open("tests/test.ncm")?;
+    ///     let mut ncm = Ncmdump::from_reader(file)?;
+    ///     let image = ncm.get_image()?;
+    ///
+    ///     let mut target = File::options()
+    ///         .create(true)
+    ///         .write(true)
+    ///         .open("tests/test.jpeg")?;
+    ///     target.write_all(&image)?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn get_image(&mut self) -> Result<Vec<u8>> {
         let (start, end) = self.image;
         let image = self.get_bytes(start, end)?;
         Ok(image)
     }
 
+    /// Get the music data from ncmdump.
+    ///
+    /// # Example:
+    ///
+    /// ```rust
+    /// use std::fs::File;
+    /// use std::path::Path;
+    ///
+    /// use anyhow::Result;
+    /// use ncmdump::Ncmdump;
+    ///
+    /// fn main() -> Result<()> {
+    ///     use std::io::Write;
+    /// let file = File::open("tests/test.ncm")?;
+    ///     let mut ncm = Ncmdump::from_reader(file)?;
+    ///     let music = ncm.get_data()?;
+    ///
+    ///     let mut target = File::options()
+    ///         .create(true)
+    ///         .write(true)
+    ///         .open("tests/test.flac")?;
+    ///     target.write_all(&music)?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn get_data(&mut self) -> Result<Vec<u8>> {
         let start = self.image.0 + self.image.1;
         let mut data = Vec::new();
         self.reader.seek(SeekFrom::Start(start))?;
         self.reader.read_to_end(&mut data)?;
-        Ok(data)
+        let key = self.get_key()?;
+        let key_box = build_key_box(&key);
+        let result = data
+            .chunks(0x8000)
+            .flat_map(|i| {
+                i.iter().enumerate().map(|(index, item)| {
+                    let j = (index + 1) & 0xff;
+                    item ^ key_box[(key_box[j] + key_box[(key_box[j] + j) & 0xff]) & 0xff] as u8
+                })
+            })
+            .collect::<Vec<u8>>();
+        Ok(result)
     }
 }
 
