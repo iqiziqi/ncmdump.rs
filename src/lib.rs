@@ -42,6 +42,8 @@ pub mod error;
 pub use crate::ncmdump::Ncmdump;
 
 use anyhow::Result;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 use crate::decrypt::{build_key_box, decrypt, HEADER_KEY, MODIFY_KEY};
@@ -195,7 +197,9 @@ pub fn get_key(buffer: &[u8]) -> Result<Vec<u8>> {
 /// ```
 pub fn get_modify(buffer: &[u8]) -> Result<Modify> {
     let modify_tmp = buffer.iter().map(|item| item ^ 0x63).collect::<Vec<u8>>();
-    let modify_key = base64::decode(&modify_tmp[22..]).map_err(|_| Errors::InvalidFileType)?;
+    let modify_key = STANDARD
+        .decode(&modify_tmp[22..])
+        .map_err(|_| Errors::ModifyDecodeError)?;
     let modify_data = decrypt(&modify_key, &MODIFY_KEY)?;
     let modify_str =
         String::from_utf8(modify_data[6..].to_vec()).map_err(|_| Errors::ModifyDecodeError)?;
