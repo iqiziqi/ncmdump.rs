@@ -67,17 +67,14 @@ where
         // check format
         let mut format = [0; 10];
         let size = reader.read(&mut format)?;
-        if size != 10 {
-            return Err(Errors::Invalid("check".into()).into());
-        }
-        if !Self::check_format(&format)? {
-            return Err(Errors::Invalid("check2".into()).into());
+        if size != 10 || !Self::check_format(&format)? {
+            return Err(Errors::InvalidFileType.into());
         }
 
         let mut key_length_buffer = [0; 4];
         let read_size = reader.read(&mut key_length_buffer)? as u64;
         if read_size != 4 {
-            return Err(Errors::Invalid("key".into()).into());
+            return Err(Errors::InvalidKeyLength.into());
         }
         let key_start = reader.stream_position()?;
         let key_length = Self::get_length(&key_length_buffer)?;
@@ -86,7 +83,7 @@ where
         let mut modify_length_buffer = [0; 4];
         let read_size = reader.read(&mut modify_length_buffer)? as u64;
         if read_size != 4 {
-            return Err(Errors::Invalid("modify".into()).into());
+            return Err(Errors::InvalidModifyLength.into());
         }
         let modify_start = reader.stream_position()?;
         let modify_length = Self::get_length(&modify_length_buffer)?;
@@ -96,7 +93,7 @@ where
         let mut image_length_buffer = [0; 4];
         let read_size = reader.read(&mut image_length_buffer)?;
         if read_size != 4 {
-            return Err(Errors::Invalid("image".into()).into());
+            return Err(Errors::InvalidImageLength.into());
         }
         let image_start = reader.stream_position()?;
         let image_length = Self::get_length(&image_length_buffer)?;
@@ -139,16 +136,16 @@ where
     /// fn main() -> Result<()> {
     ///     let file = File::open("tests/test.ncm")?;
     ///     let mut ncm = Ncmdump::from_reader(file)?;
-    ///     let modify = ncm.get_modify();
+    ///     let modify = ncm.get_info();
     ///     println!("{:?}", modify);
     ///     Ok(())
     /// }
     /// ```
-    pub fn get_modify(&mut self) -> Result<Modify> {
+    pub fn get_info(&mut self) -> Result<Modify> {
         let (start, length) = self.modify;
         let modify = self.get_bytes(start, length)?;
         let modify_tmp = modify.iter().map(|item| item ^ 0x63).collect::<Vec<u8>>();
-        let modify_key = base64::decode(&modify_tmp[22..]).map_err(|_| Errors::InvalidFile)?;
+        let modify_key = base64::decode(&modify_tmp[22..]).map_err(|_| Errors::InvalidFileType)?;
         let modify_data = decrypt(&modify_key, &MODIFY_KEY)?;
         let modify_str =
             String::from_utf8(modify_data[6..].to_vec()).map_err(|_| Errors::ModifyDecodeError)?;
@@ -157,6 +154,7 @@ where
         Ok(modify)
     }
 
+    /// Get the image bytes.
     pub fn get_image(&mut self) -> Result<Vec<u8>> {
         let (start, end) = self.image;
         let image = self.get_bytes(start, end)?;
@@ -214,7 +212,7 @@ pub mod tests {
 
         let reader = File::open("./tests/test.ncm")?;
         let mut ncm = Ncmdump::from_reader(reader)?;
-        let modify_new = ncm.get_modify()?;
+        let modify_new = ncm.get_info()?;
 
         assert_eq!(modify_new, modify_old);
         Ok(())

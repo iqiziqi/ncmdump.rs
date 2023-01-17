@@ -8,7 +8,7 @@ pub fn check_format(buffer: &[u8]) -> Result<()> {
     let (buf, _) = buffer.split_at(std::mem::size_of::<u64>());
     let temp = u64::from_ne_bytes(buf.try_into()?);
     if temp != 0x4d41_4446_4e45_5443 {
-        return Err(Errors::InvalidFile.into());
+        return Err(Errors::InvalidFileType.into());
     }
     Ok(())
 }
