@@ -12,16 +12,16 @@ pub enum Errors {
     InvalidKeyLength,
 
     /// The music info area is too small
-    #[error("Invalid modify area length")]
-    InvalidModifyLength,
+    #[error("Invalid info area length")]
+    InvalidInfoLength,
 
     /// The image area is too small
     #[error("Invalid image area length")]
     InvalidImageLength,
 
-    /// Can't decode modify of this file
-    #[error("Can't decode modify")]
-    ModifyDecodeError,
+    /// Can't decode information of this file
+    #[error("Can't decode information")]
+    InfoDecodeError,
 
     /// Can't decrypt data
     #[error("Can't decrypt")]
