@@ -7,6 +7,9 @@ pub enum Errors {
     #[error("Invalid file type")]
     InvalidFile,
 
+    #[error("Invalid file content: {0}")]
+    Invalid(String),
+
     /// Can't decode modify of this file
     #[error("Can't decode modify")]
     ModifyDecodeError,
