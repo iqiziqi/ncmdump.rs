@@ -11,7 +11,7 @@
 **/*.mp3
 **/*.ncm
 **/*.jpg
-**/*.jepg
+**/*.jpeg
 **/*.png
 !tests/test.ncm
 src/decrypt.rs
