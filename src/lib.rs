@@ -34,9 +34,12 @@
 //! ```
 //!
 mod decrypt;
+mod ncmdump;
 mod utils;
 
 pub mod error;
+
+pub use crate::ncmdump::Ncmdump;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -46,7 +49,7 @@ use crate::error::Errors;
 use crate::utils::{check_format, get_length};
 
 /// The music modify information
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Modify {
     /// The name of music
     #[serde(rename = "musicName")]
