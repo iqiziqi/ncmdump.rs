@@ -57,7 +57,7 @@ pub struct Modify {
     /// The id of music
     #[serde(rename = "musicId")]
     pub id: u64,
-    /// The album of music, it's a url
+    /// The album of music, it's an url
     pub album: String,
     /// The artist of music, first item is name, second item is id
     pub artist: Vec<(String, u64)>,
@@ -65,7 +65,7 @@ pub struct Modify {
     pub bitrate: u64,
     /// The duration of music
     pub duration: u64,
-    /// The format of music, is may be 'mp3' or 'flac'
+    /// The format of music, is maybe 'mp3' or 'flac'
     pub format: String,
     /// The id of MV
     #[serde(rename = "mvId")]
@@ -79,7 +79,7 @@ pub struct Modify {
 pub struct BlockInfo<'a> {
     /// The key block
     pub key: &'a [u8],
-    /// The modify block
+    /// The music info block
     pub modify: &'a [u8],
     /// The image block
     pub image: &'a [u8],
@@ -174,7 +174,7 @@ pub fn get_key(buffer: &[u8]) -> Result<Vec<u8>> {
     Ok(decrypt_buffer[17..].to_vec())
 }
 
-/// Decode the modify buffer and just return the file modify.
+/// Decode the music info buffer and just return the file modify.
 ///
 /// # Example
 ///
@@ -195,7 +195,7 @@ pub fn get_key(buffer: &[u8]) -> Result<Vec<u8>> {
 /// ```
 pub fn get_modify(buffer: &[u8]) -> Result<Modify> {
     let modify_tmp = buffer.iter().map(|item| item ^ 0x63).collect::<Vec<u8>>();
-    let modify_key = base64::decode(&modify_tmp[22..]).map_err(|_| Errors::InvalidFile)?;
+    let modify_key = base64::decode(&modify_tmp[22..]).map_err(|_| Errors::InvalidFileType)?;
     let modify_data = decrypt(&modify_key, &MODIFY_KEY)?;
     let modify_str =
         String::from_utf8(modify_data[6..].to_vec()).map_err(|_| Errors::ModifyDecodeError)?;
