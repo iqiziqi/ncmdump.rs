@@ -10,5 +10,8 @@
 **/*.flac
 **/*.mp3
 **/*.ncm
+**/*.jpg
+**/*.jepg
+**/*.png
 !tests/test.ncm
 src/decrypt.rs
