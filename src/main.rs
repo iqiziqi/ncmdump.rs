@@ -1,10 +1,11 @@
-use std::fs::{read, write};
+use std::fs::File;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use structopt::StructOpt;
 
-use ncmdump::{convert, get_info};
+use ncmdump::Ncmdump;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "ncmdump")]
@@ -45,20 +46,23 @@ fn main() -> Result<()> {
         info,
     } = options;
 
-    for file in files {
+    for file_path in files {
         if verbose {
-            let file_name = file.file_name().unwrap().to_str().unwrap();
+            let file_name = file_path.file_name().unwrap().to_str().unwrap();
             print!("Converting file {}", file_name);
         }
-        let buffer = read(&file)?;
-        let modify = get_info(&buffer)?;
+        let file_ = File::open(&file_path)?;
+        let mut ncm = Ncmdump::from_reader(file_)?;
+        let information = ncm.get_info()?;
         if info {
-            println!("{}", serde_json::to_string_pretty(&modify)?);
+            println!("{}", serde_json::to_string_pretty(&information)?);
             continue;
         }
-        let output_file = get_output(&file, &modify.format, &output)?;
-        let data = convert(&buffer)?;
-        write(output_file, data)?;
+        let output_file = get_output(&file_path, &information.format, &output)?;
+        let mut output = File::options().create(true).write(true).open(output_file)?;
+        let data = ncm.get_data()?;
+        output.write_all(&data)?;
+
         if verbose {
             println!("\tcomplete!")
         }
