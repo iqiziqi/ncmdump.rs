@@ -1,24 +1,26 @@
+use crate::error::Errors;
 use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::BlockDecryptMut;
 use aes::cipher::KeyInit;
 use aes::Aes128;
 use anyhow::Result;
 
-pub static HEADER_KEY: [u8; 16] = [
+pub(crate) static HEADER_KEY: [u8; 16] = [
     0x68, 0x7A, 0x48, 0x52, 0x41, 0x6D, 0x73, 0x6F, 0x35, 0x6B, 0x49, 0x6E, 0x62, 0x61, 0x78, 0x57,
 ];
 
-pub static MODIFY_KEY: [u8; 16] = [
+pub(crate) static MODIFY_KEY: [u8; 16] = [
     0x23, 0x31, 0x34, 0x6C, 0x6A, 0x6B, 0x5F, 0x21, 0x5C, 0x5D, 0x26, 0x30, 0x55, 0x3C, 0x27, 0x28,
 ];
 
-pub fn decrypt(data: &[u8], key: &[u8; 16]) -> Result<Vec<u8>> {
-    let decryptor = Aes128::new(key.into());
-    let result = decryptor.decrypt_padded_vec_mut::<Pkcs7>(data).unwrap();
+pub(crate) fn decrypt(data: &[u8], key: &[u8; 16]) -> Result<Vec<u8>> {
+    let result = Aes128::new(key.into())
+        .decrypt_padded_vec_mut::<Pkcs7>(data)
+        .map_err(|_| Errors::DecryptError)?;
     Ok(result)
 }
 
-pub fn build_key_box(key: &[u8]) -> Vec<usize> {
+pub(crate) fn build_key_box(key: &[u8]) -> Vec<usize> {
     let mut last_byte = 0;
     let mut key_box = (0..256).collect::<Vec<usize>>();
     let mut offsets = (0..key.len()).cycle();

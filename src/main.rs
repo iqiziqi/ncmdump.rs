@@ -36,7 +36,8 @@ fn get_output(file_path: &Path, format: &str, output: &Option<PathBuf>) -> Resul
     Ok(path)
 }
 
-fn run(options: Opt) -> Result<()> {
+fn main() -> Result<()> {
+    let options = Opt::from_args();
     let Opt {
         files,
         output,
@@ -62,11 +63,5 @@ fn run(options: Opt) -> Result<()> {
             println!("\tcomplete!")
         }
     }
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    let options = Opt::from_args();
-    run(options)?;
     Ok(())
 }

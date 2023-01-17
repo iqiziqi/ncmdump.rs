@@ -43,7 +43,7 @@ OPTIONS:
 You can add this to your `Cargo.toml`:
 
 ```toml
-ncmdump = "0.1.0"
+ncmdump = "0.3.0"
 ```
 
 Also, you can use this command to install this crate,
@@ -56,15 +56,22 @@ cargo add ncmdump
 ### Simple Usage
 
 ```rust
-use std::fs::{read, write};
+use std::fs::File;
 use std::path::Path;
 
+use anyhow::Result;
+use ncmdump::Ncmdump;
+
 fn main() -> Result<()> {
-    let input_path = Path::new("tests/test.ncm");
-    let output_path = Path::new("tests/test.flac");
-    let buffer = read(&input_path)?;
-    let data = ncmdump::convert(&buffer)?;
-    write(&output_path, data)?;
+    use std::io::Write;
+    let file = File::open("tests/test.ncm")?;
+    let mut ncm = Ncmdump::from_reader(file)?;
+    let music = ncm.get_data()?;
+    let mut target = File::options()
+        .create(true)
+        .write(true)
+        .open("tests/test.flac")?;
+    target.write_all(&music)?;
     Ok(())
 }
 ```

@@ -23,6 +23,10 @@ pub enum Errors {
     #[error("Can't decode modify")]
     ModifyDecodeError,
 
+    /// Can't decrypt data
+    #[error("Can't decrypt")]
+    DecryptError,
+
     /// Unknown error
     #[error("Unknown error")]
     Unknown,
