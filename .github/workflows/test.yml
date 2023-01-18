@@ -1,21 +1,38 @@
 name: test
 
-on: [ push ]
+on:
+  - push
+  - pull_request
 
 jobs:
   test:
-    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v1
+      - name: cache cargo
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}
+      - name: cache build
+        uses: actions/cache@v3
+        with:
+          path: ./target
+          key: target-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: target-${{ runner.os }}
       - name: install toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
-      - name: check
+      - name: clippy
         uses: actions-rs/cargo@v1
         with:
-          command: check
+          command: clippy
       - name: test
         uses: actions-rs/cargo@v1
         with:
