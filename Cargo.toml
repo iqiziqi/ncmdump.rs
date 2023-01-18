@@ -18,11 +18,12 @@ exclude = [
 ]
 
 [dependencies]
-aes = "0.8"
-anyhow = "1.0"
-base64 = "0.21"
-cipher = { version = "0.4", features = ["alloc", "block-padding"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-structopt = "0.3"
-thiserror = "1.0"
+aes = "^0.8"
+anyhow = "^1.0"
+base64 = "^0.21"
+cipher = { version = "^0.4", features = ["alloc", "block-padding"] }
+clap = { version = "^4.1", features = ["derive"] }
+glob = "^0.3"
+serde = { version = "^1.0", features = ["derive"] }
+serde_json = "^1.0"
+thiserror = "^1.0"
