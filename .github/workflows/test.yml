@@ -4,6 +4,9 @@ on:
   - push
   - pull_request
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   test:
     strategy:
@@ -37,3 +40,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --release --all-features
