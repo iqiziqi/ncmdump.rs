@@ -134,6 +134,7 @@ pub fn get_data(key: &[u8], data: &[u8]) -> Vec<u8> {
 }
 
 /// Get music data key.
+#[deprecated(since = "0.3.0", note = "Use Ncmdump::get_key")]
 pub fn get_key(buffer: &[u8]) -> Result<Vec<u8>> {
     let key_buffer = buffer.iter().map(|byte| byte ^ 0x64).collect::<Vec<u8>>();
     let decrypt_buffer = decrypt(&key_buffer, &HEADER_KEY)?;

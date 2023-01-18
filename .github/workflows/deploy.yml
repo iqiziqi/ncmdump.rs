@@ -7,6 +7,14 @@ on:
   pull_request:
     tags:
       - '*'
+  workflow_run:
+    workflows:
+      - test
+    types:
+      - completed
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   package:
