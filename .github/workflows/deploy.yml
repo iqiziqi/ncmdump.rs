@@ -4,12 +4,27 @@ on:
   push:
     tags:
       - '*'
+  pull_request:
+    tags:
+      - '*'
 
 jobs:
   package:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
+      - name: cache cargo
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}
+      - name: cache build
+        uses: actions/cache@v3
+        with:
+          path: ./target
+          key: target-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: target-${{ runner.os }}
       - name: install toolchain
         uses: actions-rs/toolchain@v1
         with:
