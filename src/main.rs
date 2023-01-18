@@ -3,68 +3,78 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::Parser;
+use glob::glob;
+use thiserror::Error;
 
 use ncmdump::Ncmdump;
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "ncmdump")]
-struct Opt {
-    /// Specified the files
-    #[structopt(short = "f", long = "files", parse(from_os_str))]
-    files: Vec<PathBuf>,
+#[derive(Clone, Debug, Error)]
+#[error("Can't resolve the path")]
+pub struct PathError;
 
-    /// Specified the output directory
-    #[structopt(short = "o", long = "output", parse(from_os_str))]
-    output: Option<PathBuf>,
+#[derive(Debug, Parser)]
+#[command(name = "ncmdump", bin_name = "ncmdump", about, version)]
+struct Command {
+    /// Specified the files to convert.
+    #[arg(value_name = "FILES")]
+    matchers: Vec<String>,
 
-    /// Verbosely list files processing
-    #[structopt(short = "v", long = "verbose")]
+    /// Specified the output directory.
+    /// Default it's the same directory with input file.
+    #[arg(short = 'o', long = "output")]
+    output: Option<String>,
+
+    /// Verbosely list files processing.
+    #[arg(short = 'v', long = "verbose")]
     verbose: bool,
 
-    /// Only show the information of files
-    #[structopt(short = "i", long = "info")]
+    /// Only show the ncm information of ncm files.
+    #[arg(short = 'i', long = "info")]
     info: bool,
 }
 
-fn get_output(file_path: &Path, format: &str, output: &Option<PathBuf>) -> Result<PathBuf> {
+fn get_output(file_path: &Path, format: &str, output: &Option<String>) -> Result<PathBuf> {
     let parent = match output {
-        None => file_path.parent().unwrap(),
-        Some(p) => p,
+        None => file_path.parent().ok_or(PathError)?,
+        Some(p) => Path::new(p),
     };
-    let file_name = file_path.file_stem().unwrap();
+    let file_name = file_path.file_stem().ok_or(PathError)?;
     let path = parent.join(file_name).with_extension(format);
     Ok(path)
 }
 
 fn main() -> Result<()> {
-    let options = Opt::from_args();
-    let Opt {
-        files,
+    let Command {
+        matchers,
         output,
         verbose,
         info,
-    } = options;
+    } = Command::parse();
 
-    for file_path in files {
-        if verbose {
-            let file_name = file_path.file_name().unwrap().to_str().unwrap();
-            print!("Converting file {}", file_name);
-        }
-        let file_ = File::open(&file_path)?;
-        let mut ncm = Ncmdump::from_reader(file_)?;
-        let information = ncm.get_info()?;
-        if info {
-            println!("{}", serde_json::to_string_pretty(&information)?);
-            continue;
-        }
-        let output_file = get_output(&file_path, &information.format, &output)?;
-        let mut output = File::options().create(true).write(true).open(output_file)?;
-        let data = ncm.get_data()?;
-        output.write_all(&data)?;
+    for matcher in matchers {
+        for entry in glob(&matcher)? {
+            let entry = entry?;
+            let file = File::open(&entry)?;
+            let mut ncm = Ncmdump::from_reader(file)?;
+            let information = ncm.get_info()?;
+            if info {
+                println!("{}", serde_json::to_string_pretty(&information)?);
+                continue;
+            }
+            let output_file = get_output(&entry, &information.format, &output)?;
+            let mut output = File::options().create(true).write(true).open(output_file)?;
+            let data = ncm.get_data()?;
+            output.write_all(&data)?;
 
-        if verbose {
-            println!("\tcomplete!")
+            if verbose {
+                let file_name = entry
+                    .file_name()
+                    .ok_or(PathError)?
+                    .to_str()
+                    .ok_or(PathError)?;
+                print!("Converting file {file_name}\t complete!");
+            }
         }
     }
     Ok(())
