@@ -176,7 +176,7 @@ pub fn get_modify(buffer: &[u8]) -> Result<Modify> {
 }
 
 /// The wrap of `get_data`. Decode the buffer of ncm file.
-/// Return a Result containing a Vec<u8>.
+/// Return a Result containing a `Vec<u8>`.
 /// You can write it to a file.
 ///
 /// # Example
