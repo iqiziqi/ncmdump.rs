@@ -228,14 +228,14 @@ where
     ///
     /// ```rust
     /// use std::fs::File;
+    /// use std::io::Write;
     /// use std::path::Path;
     ///
     /// use anyhow::Result;
     /// use ncmdump::Ncmdump;
     ///
     /// fn main() -> Result<()> {
-    ///     use std::io::Write;
-    /// let file = File::open("tests/test.ncm")?;
+    ///     let file = File::open("tests/test.ncm")?;
     ///     let mut ncm = Ncmdump::from_reader(file)?;
     ///     let music = ncm.get_data()?;
     ///

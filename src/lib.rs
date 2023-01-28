@@ -42,9 +42,11 @@
 mod decrypt;
 mod deprecated;
 mod ncmdump;
+mod qmcdump;
 mod utils;
 
 pub mod error;
 
 pub use crate::deprecated::*;
 pub use crate::ncmdump::Ncmdump;
+pub use crate::qmcdump::QmcDump;
