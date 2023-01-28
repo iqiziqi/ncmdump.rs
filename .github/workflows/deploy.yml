@@ -4,14 +4,6 @@ on:
   push:
     tags:
       - '*'
-  pull_request:
-    tags:
-      - '*'
-  workflow_run:
-    workflows:
-      - test
-    types:
-      - completed
 
 env:
   CARGO_TERM_COLOR: always
@@ -21,36 +13,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: cache cargo
+      - name: Cache cargo
         uses: actions/cache@v3
         with:
           path: ~/.cargo
           key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-${{ runner.os }}
-      - name: cache build
+      - name: Cache build
         uses: actions/cache@v3
         with:
           path: ./target
           key: target-${{ runner.os }}-${{ github.run_id }}
           restore-keys: target-${{ runner.os }}
-      - name: install toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           override: true
-      - name: show git status
+      - name: Show git status
         run: git status
-      - name: package
-        uses: actions-rs/cargo@v1
-        with:
-          command: package
-      - name: list packaged files
-        uses: actions-rs/cargo@v1
-        with:
-          command: package
-          args: --list
-      - name: publish
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{secrets.crate_token}}
+      - name: Package
+        run: cargo package
+      - name: List packaged files
+        run: cargo package --list
+      - name: Publish
+        run: cargo publish --token ${{secrets.crate_token}}
