@@ -29,21 +29,20 @@ impl<S> QmcDump<S>
 where
     S: Read,
 {
-    fn map_l(value: usize) -> Result<u8> {
+    fn map_l(value: usize) -> u8 {
         let v = if value > 0x7FFF {
             value % 0x7FFF
         } else {
             value
         };
         let index = (v * v + 80923) % 256;
-        Ok(KEY[index])
+        KEY[index]
     }
 
-    fn encrypt(offset: usize, buffer: &mut [u8]) -> Result<()> {
+    fn encrypt(offset: usize, buffer: &mut [u8]) {
         for index in 0..buffer.len() {
-            buffer[index] ^= Self::map_l(offset + index)?;
+            buffer[index] ^= Self::map_l(offset + index);
         }
-        Ok(())
     }
 
     /// Create QmcDump from reader.
@@ -93,7 +92,7 @@ where
         let mut output = Vec::new();
         loop {
             let size = self.0.read(&mut buffer)?;
-            Self::encrypt(offset, &mut buffer)?;
+            Self::encrypt(offset, &mut buffer);
             output.write_all(&buffer)?;
             offset += size;
             if size == 0 {
@@ -106,13 +105,34 @@ where
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use std::fs::File;
+
+    use anyhow::Result;
 
     use super::*;
 
     #[test]
-    fn test() -> Result<()> {
+    fn test_qmcdump_map_ok() {
+        let dest = QmcDump::<File>::map_l(0x99);
+        assert_eq!(dest, 146);
+
+        let dest = QmcDump::<File>::map_l(0x8FFF);
+        assert_eq!(dest, 195);
+    }
+
+    #[test]
+    fn test_qmcdump_encrypt_ok() {
+        let mut data = [0x00, 0x01, 0x02, 0x03];
+        QmcDump::<File>::encrypt(0, &mut data);
+        assert_eq!(data, [0xC3, 0x4B, 0xD4, 0xC9]);
+
+        let mut data = [0x00, 0x01, 0x02, 0x03];
+        QmcDump::<File>::encrypt(0x7fff, &mut data);
+        assert_eq!(data, [0x4A, 0x4B, 0xD4, 0xC9]);
+    }
+
+    #[test]
+    fn test_qmcdump_ok() -> Result<()> {
         let input = File::open("tests/test.qmcflac")?;
         let mut output = File::options()
             .create(true)
