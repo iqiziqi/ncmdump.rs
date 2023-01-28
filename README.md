@@ -16,7 +16,7 @@
 ### Simple usage
 
 ```shell
-ncmdump -f [files ...]
+ncmdump [files ...]
 ```
 
 ### More options
