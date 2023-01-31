@@ -132,6 +132,20 @@ mod tests {
     }
 
     #[test]
+    fn test_encrypt_head_ok() -> Result<()> {
+        // fLaC
+        let mut input = [0xA5, 0x06, 0xB7, 0x89];
+        QmcDump::<File>::encrypt(0, &mut input);
+        assert_eq!(input, [0x66, 0x4C, 0x61, 0x43]);
+
+        // ID3
+        let mut input = [0x8A, 0x0E, 0xE5];
+        QmcDump::<File>::encrypt(0, &mut input);
+        assert_eq!(input, [0x49, 0x44, 0x33]);
+        Ok(())
+    }
+
+    #[test]
     fn test_qmcdump_ok() -> Result<()> {
         let input = File::open("tests/test.qmcflac")?;
         let mut output = File::options()

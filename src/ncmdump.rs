@@ -333,8 +333,6 @@ pub mod tests {
         let image = ncm.get_image()?;
         let length = image.len();
 
-        println!("length = {}, image: {:x?}", length, image);
-
         assert_eq!(length, 39009);
         assert_eq!(
             image[..16],
@@ -360,7 +358,6 @@ pub mod tests {
         let mut ncm = Ncmdump::from_reader(reader)?;
         let data = ncm.get_data()?;
         let length = data.len();
-        println!("length = {}, image: {:x?}", length, data);
 
         assert_eq!(length, 61440);
         assert_eq!(

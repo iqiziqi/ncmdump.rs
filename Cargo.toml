@@ -4,13 +4,13 @@ version = "0.3.0"
 authors = ["iqiziqi <iqiziqi@outlook.com>"]
 edition = "2021"
 
-description = "Netease cloud music copyright protection file dump."
+description = "Some copyright protection file dump."
 homepage = "https://github.com/iqiziqi/ncmdump.rs"
 documentation = "https://docs.rs/ncmdump"
 repository = "https://github.com/iqiziqi/ncmdump.rs"
 license = "MIT"
 readme = "README.md"
-keywords = ["ncm", "music"]
+keywords = ["ncm", "qmc", "music", "dump"]
 exclude = [
     ".editorconfig",
     ".github/**/*",
