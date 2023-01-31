@@ -10,30 +10,38 @@
 ### Origin
 
 * [anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump): Original repository
+* [MegrezZhu/qmcdump](https://github.com/MegrezZhu/qmcdump): Original repository
 
 ## Binary Usage
+
+### Install
+
+You can install by Cargo.
+
+```shell
+cargo install ncmdump
+```
 
 ### Simple usage
 
 ```shell
-ncmdump [files ...]
+ncmdump [FILES]...
 ```
 
 ### More options
 
 ```
-USAGE:
-    ncmdump [FLAGS] [OPTIONS]
+Usage: ncmdump [OPTIONS] [FILES]...
 
-FLAGS:
-    -h, --help       Prints help information
-    -i, --info       Only show the information of files
-    -V, --version    Prints version information
-    -v, --verbose    Verbosely list files processing
+Arguments:
+  [FILES]...  Specified the files to convert
 
-OPTIONS:
-    -f, --files <files>...    Specified the files
-    -o, --output <output>     Specified the output directory
+Options:
+  -o, --output <OUTPUT>  Specified the output directory. Default it's the same directory with input file
+  -v, --verbose          Verbosely list files processing
+  -i, --info             Only show the ncm information of ncm files. If not ncm file, will print empty object
+  -h, --help             Print help
+  -V, --version          Print version
 ```
 
 ## Library Usage
@@ -43,7 +51,7 @@ OPTIONS:
 You can add this to your `Cargo.toml`:
 
 ```toml
-ncmdump = "0.3.0"
+ncmdump = "0.4.0"
 ```
 
 Also, you can use this command to install this crate,
