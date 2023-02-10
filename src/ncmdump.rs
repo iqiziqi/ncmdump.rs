@@ -1,4 +1,4 @@
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 use anyhow::Result;
 use base64::engine::general_purpose::STANDARD;
@@ -36,12 +36,37 @@ pub struct NcmInfo {
 
 pub struct Ncmdump<S>
 where
-    S: Read + Seek,
+    S: Read,
 {
     reader: S,
-    key: (u64, u64),
+    cursor: u64,
     info: (u64, u64),
     image: (u64, u64),
+    key_box: Vec<usize>,
+}
+
+impl<S> Ncmdump<S>
+where
+    S: Read,
+{
+    #[inline]
+    fn base(&self) -> u64 {
+        self.image.0 + self.image.1
+    }
+
+    fn get_key(key: &[u8]) -> Result<Vec<u8>> {
+        let key_buffer = key.iter().map(|byte| byte ^ 0x64).collect::<Vec<u8>>();
+        let decrypt_buffer = decrypt(&key_buffer, &HEADER_KEY)?;
+        Ok(decrypt_buffer[17..].to_vec())
+    }
+
+    fn encrypt(&mut self, offset: u64, buffer: &mut [u8]) {
+        for i in 0..buffer.len() {
+            let j = ((offset + i as u64 + 1) & 0xff) as usize;
+            let key_index = (self.key_box[j] + self.key_box[(self.key_box[j] + j) & 0xff]) & 0xff;
+            buffer[i] ^= self.key_box[key_index] as u8;
+        }
+    }
 }
 
 impl<S> Ncmdump<S>
@@ -108,8 +133,17 @@ where
         }
         let key_start = reader.stream_position()?;
         let key_length = Self::get_length(&key_length_buffer)?;
+        let mut key = Vec::new();
+        let key_reader = reader.by_ref();
+        key_reader.seek(SeekFrom::Start(key_start))?;
+        let key_size = key_reader.take(key_length).read_to_end(&mut key)?;
+        if key_length != key_size as u64 {
+            return Err(Errors::InvalidKeyLength.into());
+        }
+        let key = Self::get_key(&key)?;
+        let key_box = build_key_box(&key);
 
-        reader.seek(SeekFrom::Current(key_length as i64))?;
+        // reader.seek(SeekFrom::Current(key_length as i64))?;
         let mut info_length_buffer = [0; 4];
         let read_size = reader.read(&mut info_length_buffer)? as u64;
         if read_size != 4 {
@@ -128,9 +162,11 @@ where
         let image_start = reader.stream_position()?;
         let image_length = Self::get_length(&image_length_buffer)?;
 
+        reader.seek(SeekFrom::Start(image_start + image_length))?;
         Ok(Self {
             reader,
-            key: (key_start, key_length),
+            key_box,
+            cursor: 0,
             info: (info_start, info_length),
             image: (image_start, image_length),
         })
@@ -139,19 +175,10 @@ where
     /// Utils for get bytes.
     fn get_bytes(&mut self, start: u64, length: u64) -> Result<Vec<u8>> {
         let reader = self.reader.by_ref();
-        let mut key = Vec::new();
+        let mut buf = Vec::new();
         reader.seek(SeekFrom::Start(start))?;
-        reader.take(length).read_to_end(&mut key)?;
-        Ok(key)
-    }
-
-    /// Utils for get key.
-    pub fn get_key(&mut self) -> Result<Vec<u8>> {
-        let (start, length) = self.key;
-        let key = self.get_bytes(start, length)?;
-        let key_buffer = key.iter().map(|byte| byte ^ 0x64).collect::<Vec<u8>>();
-        let decrypt_buffer = decrypt(&key_buffer, &HEADER_KEY)?;
-        Ok(decrypt_buffer[17..].to_vec())
+        reader.take(length).read_to_end(&mut buf)?;
+        Ok(buf)
     }
 
     /// Decode the information buffer and just return the information.
@@ -248,22 +275,42 @@ where
     /// }
     /// ```
     pub fn get_data(&mut self) -> Result<Vec<u8>> {
-        let start = self.image.0 + self.image.1;
         let mut data = Vec::new();
-        self.reader.seek(SeekFrom::Start(start))?;
-        self.reader.read_to_end(&mut data)?;
-        let key = self.get_key()?;
-        let key_box = build_key_box(&key);
-        let result = data
-            .chunks(0x8000)
-            .flat_map(|i| {
-                i.iter().enumerate().map(|(index, item)| {
-                    let j = (index + 1) & 0xff;
-                    item ^ key_box[(key_box[j] + key_box[(key_box[j] + j) & 0xff]) & 0xff] as u8
-                })
-            })
-            .collect::<Vec<u8>>();
-        Ok(result)
+        let mut buffer = [0; 0x8000];
+        while let Ok(size) = self.read(&mut buffer) {
+            if size == 0 {
+                break;
+            }
+            data.write_all(&buffer[..size])?;
+        }
+        Ok(data)
+    }
+}
+
+impl<R> Read for Ncmdump<R>
+where
+    R: Read + Seek,
+{
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let size = self.reader.read(buf)?;
+        self.encrypt(self.cursor, buf);
+        self.cursor += size as u64;
+        Ok(size)
+    }
+}
+
+impl<R> Seek for Ncmdump<R>
+where
+    R: Read + Seek,
+{
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        let base = self.base();
+        let pos = match pos {
+            SeekFrom::Start(p) => SeekFrom::Start(p + base),
+            _ => pos,
+        };
+        self.cursor = self.reader.seek(pos)? - base;
+        Ok(self.cursor)
     }
 }
 
@@ -275,31 +322,10 @@ pub mod tests {
 
     use super::*;
 
-    const KEY: [u8; 96] = [
-        0x31, 0x31, 0x38, 0x31, 0x39, 0x38, 0x30, 0x33, 0x33, 0x32, 0x38, 0x35, 0x45, 0x37, 0x66,
-        0x54, 0x34, 0x39, 0x78, 0x37, 0x64, 0x6f, 0x66, 0x39, 0x4f, 0x4b, 0x43, 0x67, 0x67, 0x39,
-        0x63, 0x64, 0x76, 0x68, 0x45, 0x75, 0x65, 0x7a, 0x79, 0x33, 0x69, 0x5a, 0x43, 0x4c, 0x31,
-        0x6e, 0x46, 0x76, 0x42, 0x46, 0x64, 0x31, 0x54, 0x34, 0x75, 0x53, 0x6b, 0x74, 0x41, 0x4a,
-        0x4b, 0x6d, 0x77, 0x5a, 0x58, 0x73, 0x69, 0x6a, 0x50, 0x62, 0x69, 0x6a, 0x6c, 0x69, 0x69,
-        0x6f, 0x6e, 0x56, 0x55, 0x58, 0x58, 0x67, 0x39, 0x70, 0x6c, 0x54, 0x62, 0x58, 0x45, 0x63,
-        0x6c, 0x41, 0x45, 0x39, 0x4c, 0x62,
-    ];
-
     #[test]
     fn test_create_dump_ok() -> Result<()> {
         let reader = File::open("./tests/test.ncm")?;
         let _ = Ncmdump::from_reader(reader)?;
-        Ok(())
-    }
-
-    #[test]
-    fn test_get_key_ok() -> Result<()> {
-        let reader = File::open("./tests/test.ncm")?;
-        let mut ncm = Ncmdump::from_reader(reader)?;
-        let key = ncm.get_key()?;
-
-        assert_eq!(key[..], KEY[..]);
-
         Ok(())
     }
 
@@ -374,6 +400,44 @@ pub mod tests {
                 0x09, 0x7b,
             ],
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_encrypt_ok() -> Result<()> {
+        let reader = File::open("./tests/test.ncm")?;
+        let mut ncm = Ncmdump::from_reader(reader)?;
+        let mut data = [63, 246, 41, 107];
+        ncm.encrypt(0, &mut data);
+        assert_eq!(data, [102, 76, 97, 67]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_ncmdump_read_ok() -> Result<()> {
+        let reader = File::open("./tests/test.ncm")?;
+        let mut ncm = Ncmdump::from_reader(reader)?;
+        let mut buf = [0; 4];
+
+        let size = ncm.read(&mut buf)?;
+        assert_eq!(size, 4);
+        assert_eq!(buf, [0x66, 0x4c, 0x61, 0x43]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_ncmdump_multi_read_ok() -> Result<()> {
+        let reader = File::open("./tests/test.ncm")?;
+        let mut ncm = Ncmdump::from_reader(reader)?;
+        let mut buf = [0; 4];
+
+        let size = ncm.read(&mut buf)?;
+        assert_eq!(size, 4);
+        assert_eq!(buf, [0x66, 0x4c, 0x61, 0x43]);
+
+        let size = ncm.read(&mut buf)?;
+        assert_eq!(size, 4);
+        assert_eq!(buf, [0x00, 0x00, 0x00, 0x22]);
         Ok(())
     }
 }
