@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 const BUFFER_SIZE: usize = 8192;
 const KEY: [u8; 256] = [
@@ -21,27 +21,31 @@ const KEY: [u8; 256] = [
     0x1C, 0x71, 0xDB, 0x00, 0xBC, 0xFD, 0x0C, 0x6C, 0xA5, 0x47, 0xF7, 0xF6, 0x00, 0x79, 0x4A, 0x11,
 ];
 
-pub struct QmcDump<S>(S)
+pub struct QmcDump<S>
 where
-    S: Read;
+    S: Read,
+{
+    reader: S,
+    cursor: u64,
+}
 
 impl<S> QmcDump<S>
 where
     S: Read,
 {
-    fn map_l(value: usize) -> u8 {
+    fn map_l(value: u64) -> u8 {
         let v = if value > 0x7FFF {
             value % 0x7FFF
         } else {
             value
-        };
+        } as usize;
         let index = (v * v + 80923) % 256;
         KEY[index]
     }
 
-    fn encrypt(offset: usize, buffer: &mut [u8]) {
+    fn encrypt(offset: u64, buffer: &mut [u8]) {
         for index in 0..buffer.len() {
-            buffer[index] ^= Self::map_l(offset + index);
+            buffer[index] ^= Self::map_l(offset + index as u64);
         }
     }
 
@@ -58,7 +62,7 @@ where
     /// let ncm = QmcDump::from_reader(file).unwrap();
     /// ```
     pub fn from_reader(reader: S) -> Result<Self> {
-        Ok(Self(reader))
+        Ok(Self { reader, cursor: 0 })
     }
 
     /// Get the music data from qmcdump.
@@ -88,24 +92,43 @@ where
     /// ```
     pub fn get_data(&mut self) -> Result<Vec<u8>> {
         let mut buffer = [0; BUFFER_SIZE];
-        let mut offset = 0;
         let mut output = Vec::new();
-        loop {
-            let size = self.0.read(&mut buffer)?;
-            Self::encrypt(offset, &mut buffer);
-            output.write_all(&buffer)?;
-            offset += size;
+        while let Ok(size) = self.read(&mut buffer) {
             if size == 0 {
                 break;
             }
+            output.write_all(&buffer[..size])?;
         }
         Ok(output)
+    }
+}
+
+impl<R> Read for QmcDump<R>
+where
+    R: Read,
+{
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let size = self.reader.read(buf)?;
+        Self::encrypt(self.cursor, buf);
+        self.cursor += size as u64;
+        Ok(size)
+    }
+}
+
+impl<R> Seek for QmcDump<R>
+where
+    R: Read + Seek,
+{
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        self.cursor = self.reader.seek(pos)?;
+        Ok(self.cursor)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::fs::File;
+    use std::io::Cursor;
 
     use anyhow::Result;
 
@@ -155,6 +178,32 @@ mod tests {
         let mut qmc = QmcDump::from_reader(input)?;
         let data = qmc.get_data()?;
         output.write_all(&data)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_qmcdump_read_ok() -> Result<()> {
+        let input = Cursor::new([0x00, 0x01, 0x02, 0x03]);
+        let mut qmc = QmcDump::from_reader(input)?;
+        let mut buf = [0; 4];
+        let size = qmc.read(&mut buf)?;
+        assert_eq!(size, 4);
+        assert_eq!(buf, [0xC3, 0x4B, 0xD4, 0xC9]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_qmcdump_multi_read_ok() -> Result<()> {
+        let input = Cursor::new([0x00, 0x01, 0x02, 0x03]);
+        let mut qmc = QmcDump::from_reader(input)?;
+        let mut buf = [0; 2];
+        let size = qmc.read(&mut buf)?;
+        assert_eq!(size, 2);
+        assert_eq!(buf, [0xC3, 0x4B]);
+
+        let size = qmc.read(&mut buf)?;
+        assert_eq!(size, 2);
+        assert_eq!(buf, [0xD4, 0xC9]);
         Ok(())
     }
 }
