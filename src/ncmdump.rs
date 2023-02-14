@@ -67,12 +67,7 @@ where
             buffer[i] ^= self.key_box[key_index] as u8;
         }
     }
-}
 
-impl<S> Ncmdump<S>
-where
-    S: Read + Seek,
-{
     /// Check the file format by header.
     fn check_format(buffer: &[u8]) -> Result<bool> {
         let (buf, _) = buffer.split_at(std::mem::size_of::<u64>());
@@ -89,7 +84,12 @@ where
         let length = u32::from_ne_bytes(bytes) as u64;
         Ok(length)
     }
+}
 
+impl<S> Ncmdump<S>
+where
+    S: Read + Seek,
+{
     /// Create a Ncmdump from a seekable reader.
     /// Usually, the reader is a `File` or `Cursor`.
     ///
