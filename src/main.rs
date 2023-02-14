@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use clap::Parser;
 use glob::glob;
+use indicatif::{ProgressBar, ProgressStyle};
 use thiserror::Error;
 
 use ncmdump::{Ncmdump, QmcDump};
@@ -15,6 +16,12 @@ enum Error {
     PathError,
     #[error("Invalid file format")]
     FormatError,
+}
+
+struct Wrapper {
+    path: PathBuf,
+    size: u64,
+    name: String,
 }
 
 enum FileType {
@@ -37,11 +44,6 @@ struct Command {
     /// Verbosely list files processing.
     #[arg(short = 'v', long = "verbose")]
     verbose: bool,
-
-    /// Only show the ncm information of ncm files.
-    /// If not ncm file, will print empty object.
-    #[arg(short = 'i', long = "info")]
-    info: bool,
 }
 
 fn check_format(path: &PathBuf) -> Result<FileType> {
@@ -70,83 +72,69 @@ fn get_output(file_path: &Path, format: &str, output: &Option<String>) -> Result
     Ok(path)
 }
 
-fn get_paths(matchers: Vec<String>) -> Result<Vec<PathBuf>> {
+fn get_paths(matchers: &Vec<String>) -> Result<Vec<Wrapper>> {
     let mut paths = Vec::new();
     for matcher in matchers {
-        for entry in glob(&matcher)? {
-            paths.push(entry?);
+        for entry in glob(matcher)? {
+            let path = entry?;
+            let file = File::open(&path)?;
+            let size = file.metadata()?.len();
+            let name = path.file_name().unwrap().to_str().unwrap().to_string();
+            paths.push(Wrapper { path, size, name })
         }
     }
     Ok(paths)
 }
 
 fn main() -> Result<()> {
-    let Command {
-        matchers,
-        output,
-        verbose,
-        info,
-    } = Command::parse();
+    let command = Command::parse();
 
-    for entry in get_paths(matchers)? {
-        let file = File::open(&entry)?;
-        let file_type = check_format(&entry)?;
-        if info {
-            let info = match file_type {
-                FileType::Ncm => {
-                    let mut ncm = Ncmdump::from_reader(file)?;
-                    let information = ncm.get_info()?;
-                    serde_json::to_string_pretty(&information)?
+    let list = get_paths(&command.matchers)?;
+    let total_size = list.iter().map(|item| item.size).sum();
+    let template = "{bytes:>10!}/{total_bytes:<10!} {bytes_per_sec:>15!} [{bar:40}]";
+    let progress_style = ProgressStyle::with_template(template)?;
+    let progress = ProgressBar::new(total_size).with_style(progress_style);
+    for item in list {
+        let file_type = check_format(&item.path)?;
+        let mut data = Vec::new();
+        match file_type {
+            FileType::Ncm => {
+                let file = File::open(&item.path)?;
+                let mut dump = Ncmdump::from_reader(file)?;
+                let mut buffer = [0; 1024];
+                while let Ok(size) = dump.read(&mut buffer) {
+                    if size == 0 {
+                        break;
+                    }
+                    data.write_all(&buffer[..size])?;
+                    progress.inc(size as u64);
                 }
-                FileType::Qmc => "{}".to_string(),
-            };
-            println!("{}", info);
-            continue;
+            }
+            FileType::Qmc => {
+                let file = File::open(&item.path)?;
+                let mut dump = QmcDump::from_reader(file)?;
+                let mut buffer = [0; 1024];
+                while let Ok(size) = dump.read(&mut buffer) {
+                    if size == 0 {
+                        break;
+                    }
+                    data.write_all(&buffer[..size])?;
+                    progress.inc(size as u64);
+                }
+            }
         }
-        let data = match file_type {
-            FileType::Ncm => Ncmdump::from_reader(file)?.get_data()?,
-            FileType::Qmc => QmcDump::from_reader(file)?.get_data()?,
-        };
         let ext = match data[..4] {
             [0x66, 0x4C, 0x61, 0x43] => Ok("flac"),
             [0x49, 0x44, 0x33, _] => Ok("mp3"),
             _ => Err(Error::FormatError),
         }?;
-        let output_file = get_output(&entry, ext, &output)?;
-        let mut output = File::options().create(true).write(true).open(output_file)?;
-        output.write_all(&data)?;
-
-        if verbose {
-            let file_name = entry
-                .file_name()
-                .ok_or(Error::PathError)?
-                .to_str()
-                .ok_or(Error::PathError)?;
-            println!("Converting file {file_name}\t complete!");
+        let output_file = get_output(&item.path, ext, &command.output)?;
+        let mut target = File::options().create(true).write(true).open(output_file)?;
+        target.write_all(&data)?;
+        if command.verbose {
+            progress.println(format!("Converting file {}\t complete!", item.name));
         }
     }
+    progress.finish();
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::Error;
-    use anyhow::Result;
-    use glob::glob;
-    use std::fs::File;
-    use std::io::Read;
-
-    #[test]
-    fn test() -> Result<()> {
-        for path in glob("tests/*.ncm")? {
-            let path = path?;
-            let mut file = File::open(path)?;
-            let mut head = [0; 8];
-            if file.read(&mut head)? != 8 {
-                return Err(Error::FormatError.into());
-            }
-            println!("header is {:X?}", head);
-        }
-        Ok(())
-    }
 }
