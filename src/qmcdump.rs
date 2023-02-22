@@ -44,8 +44,8 @@ where
     }
 
     fn encrypt(offset: u64, buffer: &mut [u8]) {
-        for index in 0..buffer.len() {
-            buffer[index] ^= Self::map_l(offset + index as u64);
+        for (index, byte) in buffer.iter_mut().enumerate() {
+            *byte ^= Self::map_l(offset + index as u64);
         }
     }
 

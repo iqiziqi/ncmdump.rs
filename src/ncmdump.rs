@@ -61,10 +61,10 @@ where
     }
 
     fn encrypt(&mut self, offset: u64, buffer: &mut [u8]) {
-        for i in 0..buffer.len() {
-            let j = ((offset + i as u64 + 1) & 0xff) as usize;
+        for (index, byte) in buffer.iter_mut().enumerate() {
+            let j = ((offset + index as u64 + 1) & 0xff) as usize;
             let key_index = (self.key_box[j] + self.key_box[(self.key_box[j] + j) & 0xff]) & 0xff;
-            buffer[i] ^= self.key_box[key_index] as u8;
+            *byte ^= self.key_box[key_index] as u8;
         }
     }
 
