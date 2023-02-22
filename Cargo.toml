@@ -33,3 +33,4 @@ thiserror = "^1.0"
 default = ['ncmdump', 'qmcdump']
 ncmdump = []
 qmcdump = []
+deprecate = []

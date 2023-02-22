@@ -47,7 +47,6 @@ mod utils;
 
 pub mod error;
 
-#[cfg(feature = "ncmdump")]
 pub use crate::deprecated::*;
 
 #[cfg(feature = "ncmdump")]

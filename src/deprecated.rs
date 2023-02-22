@@ -1,15 +1,23 @@
+#[cfg(feature = "deprecate")]
 use anyhow::Result;
+#[cfg(feature = "deprecate")]
 use base64::engine::general_purpose::STANDARD;
+#[cfg(feature = "deprecate")]
 use base64::Engine;
+#[cfg(feature = "deprecate")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "deprecate")]
 use crate::decrypt::{build_key_box, decrypt, HEADER_KEY, INFO_KEY};
+#[cfg(feature = "deprecate")]
 use crate::error::Errors;
+#[cfg(feature = "deprecate")]
 use crate::utils::{check_format, get_length};
 
 /// The music modify information
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[deprecated(since = "0.3.0", note = "Use NcmInfo")]
+#[cfg(feature = "deprecate")]
+#[deprecated(since = "0.3.0", note = "It will be removed since 0.6.0. Use NcmInfo.")]
 #[allow(deprecated)]
 pub struct Modify {
     /// The name of music
@@ -37,7 +45,8 @@ pub struct Modify {
 
 /// The block information.
 #[derive(Debug)]
-#[deprecated(since = "0.3.0", note = "Use Ncmdump")]
+#[cfg(feature = "deprecate")]
+#[deprecated(since = "0.3.0", note = "It will be removed since 0.6.0. Use Ncmdump.")]
 pub struct BlockInfo<'a> {
     /// The key block
     pub key: &'a [u8],
@@ -67,7 +76,11 @@ pub struct BlockInfo<'a> {
 ///     Ok(())
 /// }
 /// ```
-#[deprecated(since = "0.3.0", note = "Use Ncmdump::from_reader")]
+#[deprecated(
+    since = "0.3.0",
+    note = "It will be removed since 0.6.0. Use Ncmdump::from_reader."
+)]
+#[cfg(feature = "deprecate")]
 #[allow(deprecated)]
 pub fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo> {
     let (format_buffer, buffer) = file_buffer.split_at(10);
@@ -119,7 +132,11 @@ pub fn get_blocks(file_buffer: &[u8]) -> Result<BlockInfo> {
 ///     Ok(())
 /// }
 /// ```
-#[deprecated(since = "0.3.0", note = "Use Ncmdump::get_data")]
+#[cfg(feature = "deprecate")]
+#[deprecated(
+    since = "0.3.0",
+    note = "Use Ncmdump::get_data. It will be removed since 0.6.0"
+)]
 #[allow(deprecated)]
 pub fn get_data(key: &[u8], data: &[u8]) -> Vec<u8> {
     let key_box = build_key_box(key);
@@ -134,7 +151,11 @@ pub fn get_data(key: &[u8], data: &[u8]) -> Vec<u8> {
 }
 
 /// Get music data key.
-#[deprecated(since = "0.3.0", note = "Use Ncmdump::get_key")]
+#[cfg(feature = "deprecate")]
+#[deprecated(
+    since = "0.3.0",
+    note = "It will be removed since 0.6.0. Use Ncmdump::get_key."
+)]
 pub fn get_key(buffer: &[u8]) -> Result<Vec<u8>> {
     let key_buffer = buffer.iter().map(|byte| byte ^ 0x64).collect::<Vec<u8>>();
     let decrypt_buffer = decrypt(&key_buffer, &HEADER_KEY)?;
@@ -160,7 +181,11 @@ pub fn get_key(buffer: &[u8]) -> Result<Vec<u8>> {
 ///     Ok(())
 /// }
 /// ```
-#[deprecated(since = "0.3.0", note = "Use Ncmdump::get_info")]
+#[cfg(feature = "deprecate")]
+#[deprecated(
+    since = "0.3.0",
+    note = "It will be removed since 0.6.0. Use Ncmdump::get_info."
+)]
 #[allow(deprecated)]
 pub fn get_modify(buffer: &[u8]) -> Result<Modify> {
     let modify_tmp = buffer.iter().map(|item| item ^ 0x63).collect::<Vec<u8>>();
@@ -196,7 +221,11 @@ pub fn get_modify(buffer: &[u8]) -> Result<Modify> {
 ///     Ok(())
 /// }
 /// ```
-#[deprecated(since = "0.3.0", note = "Use Ncmdump::get_data")]
+#[cfg(feature = "deprecate")]
+#[deprecated(
+    since = "0.3.0",
+    note = "It will be removed since 0.6.0. Use Ncmdump::get_data."
+)]
 #[allow(deprecated)]
 pub fn convert(file_buffer: &[u8]) -> Result<Vec<u8>> {
     let blocks = get_blocks(file_buffer)?;
@@ -224,7 +253,11 @@ pub fn convert(file_buffer: &[u8]) -> Result<Vec<u8>> {
 ///     Ok(())
 /// }
 /// ```
-#[deprecated(since = "0.3.0", note = "Use Ncmdump::get_info")]
+#[cfg(feature = "deprecate")]
+#[deprecated(
+    since = "0.3.0",
+    note = "It will be removed since 0.6.0. Use Ncmdump::get_info."
+)]
 #[allow(deprecated)]
 pub fn get_info(file_buffer: &[u8]) -> Result<Modify> {
     let blocks = get_blocks(file_buffer)?;

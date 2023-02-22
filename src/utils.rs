@@ -1,9 +1,13 @@
+#[cfg(feature = "deprecate")]
 use std::convert::TryInto;
 
+#[cfg(feature = "deprecate")]
 use anyhow::Result;
 
+#[cfg(feature = "deprecate")]
 use crate::error::Errors;
 
+#[cfg(feature = "deprecate")]
 pub fn check_format(buffer: &[u8]) -> Result<()> {
     let (buf, _) = buffer.split_at(std::mem::size_of::<u64>());
     let temp = u64::from_ne_bytes(buf.try_into()?);
@@ -13,13 +17,14 @@ pub fn check_format(buffer: &[u8]) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "deprecate")]
 pub fn get_length(buffer: &[u8]) -> Result<usize> {
     let bytes = buffer.try_into()?;
     let length = u32::from_ne_bytes(bytes) as usize;
     Ok(length)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "deprecate"))]
 mod tests {
 
     use super::*;
