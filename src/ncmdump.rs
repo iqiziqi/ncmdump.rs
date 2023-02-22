@@ -103,7 +103,7 @@ where
     /// # use ncmdump::Ncmdump;
     /// #
     /// let file = File::open("tests/test.ncm").expect("Can't open file");
-    /// let ncm = Ncmdump::from_reader(file).unwrap();
+    /// let _ = Ncmdump::from_reader(file).unwrap();
     /// ```
     /// Or from a Cursor.
     /// ```rust

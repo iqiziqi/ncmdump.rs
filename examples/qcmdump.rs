@@ -1,4 +1,5 @@
 //! This example is use `QmcDump` to convert a qmc file to flac file
+//! You can use the same method to read ncm file. Like [this example](examples/ncmdump.rs)
 //!
 //! You should use your own qmcflac file instead the test file
 //!

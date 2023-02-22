@@ -5,7 +5,7 @@
 //! You can add this to your `Cargo.toml`:
 //!
 //! ```toml
-//! ncmdump = "0.3.0"
+//! ncmdump = "0.5.0"
 //! ```
 //!
 //! Also, you can use this command to install this crate,
