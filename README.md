@@ -30,7 +30,7 @@ ncmdump [FILES]...
 
 ### More options
 
-```
+```text
 Usage: ncmdump [OPTIONS] [FILES]...
 
 Arguments:
@@ -39,7 +39,6 @@ Arguments:
 Options:
   -o, --output <OUTPUT>  Specified the output directory. Default it's the same directory with input file
   -v, --verbose          Verbosely list files processing
-  -i, --info             Only show the ncm information of ncm files. If not ncm file, will print empty object
   -h, --help             Print help
   -V, --version          Print version
 ```
