@@ -1,0 +1,93 @@
+name: release
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+        - target: x86_64-unknown-linux-gnu
+          os: ubuntu-latest
+          name: ncmdump-linux-x64.tar.gz
+
+        - target: x86_64-apple-darwin
+          os: macos-latest
+          name: ncmdump-macos-x64.tar.gz
+
+        - target: aarch64-apple-darwin
+          os: macos-latest
+          name: ncmdump-macos-aarch64.tar.gz
+
+        - target: x86_64-pc-windows-msvc
+          os: windows-latest
+          name: ncmdump-windows-x64.zip
+
+        - target: i686-pc-windows-msvc
+          os: windows-latest
+          name: ncmdump-windows-x86.zip
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v1
+
+      - name: Setup | Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Setup | Cache cargo
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo
+          key: cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Setup | Cache build
+        uses: actions/cache@v3
+        with:
+          path: ./target
+          key: target-${{ matrix.target }}
+          restore-keys: target-${{ matrix.target }}-${{ github.run_id }}
+
+      - name: Build | Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build | Bundle Win
+        if: matrix.os == 'windows-latest'
+        run: 7z a ${{ matrix.name }} "$(pwd)/target/${{ matrix.target }}/release/ncmdump.exe"
+
+      - name: Build | Bundle Nix
+        if: matrix.os != 'windows-latest'
+        run: tar czvf ${{ matrix.name }} -C target/${{ matrix.target }}/release ncmdump
+
+      - name: Release | Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Setup | Download
+        uses: actions/download-artifact@v3
+
+      - name: Setup | CheckSum
+        run: |
+          for file in ncmdump-*/ncmdump-*; do
+            openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256";
+          done
+
+      - name: Release | Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ncmdump-*/ncmdump-*
