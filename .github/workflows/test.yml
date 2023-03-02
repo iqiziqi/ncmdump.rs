@@ -14,25 +14,30 @@ jobs:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v1
-      - name: Cache cargo
+      - name: Setup | Checkout
+        uses: actions/checkout@v1
+
+      - name: Setup | Cache cargo
         uses: actions/cache@v3
         with:
           path: ~/.cargo
           key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-${{ runner.os }}
-      - name: Cache build
+
+      - name: Setup | Cache build
         uses: actions/cache@v3
         with:
           path: ./target
           key: target-${{ runner.os }}-${{ github.run_id }}
           restore-keys: target-${{ runner.os }}
-      - name: Install rust toolchain
+
+      - name: Setup | Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          override: true
-      - name: Clippy
+
+      - name: Test | Clippy
         run: cargo clippy
-      - name: Test
+
+      - name: Test | Unit test
         run: cargo test --release --all-features
