@@ -39,15 +39,14 @@
 //! }
 //! ```
 //!
+#[cfg(feature = "ncmdump")]
 mod decrypt;
-mod deprecated;
+#[cfg(feature = "ncmdump")]
 mod ncmdump;
+#[cfg(feature = "qmcdump")]
 mod qmcdump;
-mod utils;
 
 pub mod error;
-
-pub use crate::deprecated::*;
 
 #[cfg(feature = "ncmdump")]
 pub use crate::ncmdump::Ncmdump;
