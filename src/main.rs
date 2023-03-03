@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::thread;
 
 use anyhow::Result;
 use clap::Parser;
@@ -13,8 +15,7 @@ use ncmdump::Ncmdump;
 #[cfg(feature = "qmcdump")]
 use ncmdump::QmcDump;
 
-const PROGRESS_STYLE_RUN: &str = "[{bar:40.cyan}] | {percent:>3!}% | {per_sec}";
-const PROGRESS_STYLE_DUMP: &str = "[{bar:40.cyan}] | {percent:>3!}% | {msg}";
+const PROGRESS_STYLE_DUMP: &str = "[{bar:40.cyan}] |{percent:>3!}%| {msg}";
 
 enum FileType {
     #[cfg(feature = "ncmdump")]
@@ -32,9 +33,13 @@ enum Error {
     Format,
     #[error("No file can be converted")]
     NoFile,
+    #[error("Can't get file's metadata")]
+    Metadata,
+    #[error("Worker can't less than 0 and more than 8")]
+    Worker,
 }
 
-#[derive(Debug, Parser)]
+#[derive(Clone, Debug, Parser)]
 #[command(name = "ncmdump", bin_name = "ncmdump", about, version)]
 struct Command {
     /// Specified the files to convert.
@@ -45,6 +50,66 @@ struct Command {
     /// Default it's the same directory with input file.
     #[arg(short = 'o', long = "output")]
     output: Option<String>,
+
+    /// Verbosely list files processing.
+    #[arg(short = 'v', long = "verbose")]
+    verbose: bool,
+
+    /// The process work count.
+    /// It should more than 0 and less than 9.
+    #[arg(short = 'w', long = "worker", default_value = "1")]
+    worker: usize,
+}
+
+impl Command {
+    fn get_output(file_path: &Path, format: &str, output: &Option<String>) -> Result<PathBuf> {
+        let parent = match output {
+            None => file_path.parent().ok_or(Error::Path)?,
+            Some(p) => Path::new(p),
+        };
+        let file_name = file_path.file_stem().ok_or(Error::Path)?;
+        let path = parent.join(file_name).with_extension(format);
+        Ok(path)
+    }
+
+    fn get_data(
+        mut dump: impl Read,
+        total: &ProgressBar,
+        progress: &ProgressBar,
+    ) -> Result<Vec<u8>> {
+        let mut data = Vec::new();
+        let mut buffer = [0; 1024];
+        while let Ok(size) = dump.read(&mut buffer) {
+            if size == 0 {
+                break;
+            }
+            data.write_all(&buffer[..size])?;
+            total.inc(size as u64);
+            progress.inc(size as u64);
+        }
+        progress.finish();
+        Ok(data)
+    }
+
+    fn dump(&self, item: &Wrapper, total: &ProgressBar, progress: &ProgressBar) -> Result<()> {
+        let file = File::open(&item.path)?;
+        let data = match item.format {
+            #[cfg(feature = "ncmdump")]
+            FileType::Ncm => Self::get_data(Ncmdump::from_reader(file)?, total, progress),
+            #[cfg(feature = "qmcdump")]
+            FileType::Qmc => Self::get_data(QmcDump::from_reader(file)?, total, progress),
+            FileType::Other => Err(Error::Format.into()),
+        }?;
+        let ext = match data[..4] {
+            [0x66, 0x4C, 0x61, 0x43] => Ok("flac"),
+            [0x49, 0x44, 0x33, _] => Ok("mp3"),
+            _ => Err(Error::Format),
+        }?;
+        let output_file = Self::get_output(&item.path, ext, &self.output)?;
+        let mut target = File::options().create(true).write(true).open(output_file)?;
+        target.write_all(&data)?;
+        Ok(())
+    }
 }
 
 struct Wrapper {
@@ -72,137 +137,85 @@ impl Wrapper {
             FileType::Other
         };
 
+        let size = file.metadata().map_err(|_| Error::Metadata)?.len();
+        let name = path
+            .file_name()
+            .ok_or(Error::Path)?
+            .to_str()
+            .ok_or(Error::Path)?
+            .to_string();
         Ok(Self {
-            name: path.file_name().unwrap().to_str().unwrap().to_string(),
+            name,
             format,
             path,
-            size: file.metadata().unwrap().len(),
+            size,
         })
     }
 }
 
-struct NcmdumpCli {
-    command: Command,
-    progress: MultiProgress,
-}
+struct NcmdumpCli(Arc<Command>);
 
 impl NcmdumpCli {
     fn from_command(command: Command) -> Self {
-        Self {
-            command,
-            progress: MultiProgress::new(),
-        }
-    }
-
-    fn get_output(
-        &self,
-        file_path: &Path,
-        format: &str,
-        output: &Option<String>,
-    ) -> Result<PathBuf> {
-        let parent = match output {
-            None => file_path.parent().ok_or(Error::Path)?,
-            Some(p) => Path::new(p),
-        };
-        let file_name = file_path.file_stem().ok_or(Error::Path)?;
-        let path = parent.join(file_name).with_extension(format);
-        Ok(path)
-    }
-
-    fn get_paths(&self) -> Result<Vec<PathBuf>> {
-        let mut paths = Vec::new();
-        for matcher in &self.command.matchers {
-            for entry in glob(matcher.as_str())? {
-                match entry {
-                    Ok(path) => {
-                        if path.is_file() {
-                            paths.push(path);
-                        }
-                    }
-                    Err(e) => println!("{:?}", e),
-                }
-            }
-        }
-        Ok(paths)
-    }
-
-    fn get_info(&self, paths: Vec<PathBuf>) -> Vec<Wrapper> {
-        let mut result = Vec::new();
-        for path in paths {
-            if let Ok(item) = Wrapper::from_path(path) {
-                match item.format {
-                    FileType::Other => {}
-                    _ => result.push(item),
-                }
-            };
-        }
-        result
-    }
-
-    fn get_data(&self, mut dump: impl Read, progress: &ProgressBar) -> Result<Vec<u8>> {
-        let mut data = Vec::new();
-        let mut buffer = [0; 1024];
-        while let Ok(size) = dump.read(&mut buffer) {
-            if size == 0 {
-                break;
-            }
-            data.write_all(&buffer[..size])?;
-            progress.inc(size as u64);
-        }
-        progress.finish();
-        Ok(data)
-    }
-
-    fn dump(&self, item: &Wrapper, progress: &ProgressBar) -> Result<()> {
-        let file = File::open(&item.path)?;
-        let data = match item.format {
-            #[cfg(feature = "ncmdump")]
-            FileType::Ncm => self.get_data(Ncmdump::from_reader(file)?, progress),
-            #[cfg(feature = "qmcdump")]
-            FileType::Qmc => self.get_data(QmcDump::from_reader(file)?, progress),
-            FileType::Other => Err(Error::Format.into()),
-        }?;
-        let ext = match data[..4] {
-            [0x66, 0x4C, 0x61, 0x43] => Ok("flac"),
-            [0x49, 0x44, 0x33, _] => Ok("mp3"),
-            _ => Err(Error::Format),
-        }?;
-        let output_file = self.get_output(&item.path, ext, &self.command.output)?;
-        let mut target = File::options().create(true).write(true).open(output_file)?;
-        target.write_all(&data)?;
-        Ok(())
+        Self(Arc::new(command))
     }
 
     fn start(&self) -> Result<()> {
-        if self.command.matchers.is_empty() {
+        let worker = match self.0.worker {
+            1..=8 => Ok(self.0.worker),
+            _ => Err(Error::Worker),
+        }?;
+
+        let matchers = self.0.matchers.clone();
+        if matchers.is_empty() {
             return Err(Error::NoFile.into());
         }
-        let paths = self.get_paths()?;
-        let items = self.get_info(paths);
-        if items.is_empty() {
-            return Err(Error::NoFile.into());
+        let mut tasks = Vec::new();
+        let progress = Arc::new(MultiProgress::new());
+        let total_progress_style = ProgressStyle::with_template(PROGRESS_STYLE_DUMP)?;
+        let total = Arc::new(progress.add(ProgressBar::new(0).with_style(total_progress_style)));
+        let (tx, rx) = crossbeam_channel::unbounded();
+
+        {
+            let total = total.clone();
+            thread::spawn(move || {
+                for matcher in matchers {
+                    for entry in glob(matcher.as_str())? {
+                        let path = entry.map_err(|_| Error::Path)?;
+                        if path.is_file() {
+                            let w = Wrapper::from_path(path).map_err(|_| Error::Path)?;
+                            total.set_length(total.length().unwrap_or(0) + w.size);
+                            tx.send(w)?;
+                        }
+                    }
+                }
+                anyhow::Ok(())
+            });
         }
 
-        let progress_style_run = ProgressStyle::with_template(PROGRESS_STYLE_RUN)?;
-        let progress_style_dump = ProgressStyle::with_template(PROGRESS_STYLE_DUMP)?;
-
-        let progress_run = self
-            .progress
-            .add(ProgressBar::new(items.len() as u64).with_style(progress_style_run));
-
-        for item in items {
-            let current = self.progress.insert(
-                0,
-                ProgressBar::new(item.size).with_style(progress_style_dump.clone()),
-            );
-            current.set_message(item.name.clone());
-            match self.dump(&item, &current) {
-                Ok(_) => progress_run.inc(1),
-                Err(e) => println!("{:?}", e),
-            }
+        for _ in 1..=worker {
+            let rx = rx.clone();
+            let total = total.clone();
+            let progress = progress.clone();
+            let command = self.0.clone();
+            let task = thread::spawn(move || {
+                let progress_style_dump = ProgressStyle::with_template(PROGRESS_STYLE_DUMP)?;
+                while let Ok(w) = rx.recv() {
+                    let current = progress.insert_from_back(
+                        1,
+                        ProgressBar::new(w.size).with_style(progress_style_dump.clone()),
+                    );
+                    current.set_message(w.name.clone());
+                    command.dump(&w, &total, &current)?;
+                }
+                anyhow::Ok(())
+            });
+            tasks.push(task);
         }
-        progress_run.finish();
-
+        for task in tasks {
+            task.join().unwrap()?;
+        }
+        total.finish();
         Ok(())
     }
 }
