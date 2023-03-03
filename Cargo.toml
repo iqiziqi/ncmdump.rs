@@ -23,6 +23,7 @@ anyhow = "^1.0"
 base64 = "^0.21"
 cipher = { version = "^0.4", features = ["alloc", "block-padding"] }
 clap = { version = "^4.1", features = ["derive"] }
+crossbeam-channel = "0.5.7"
 glob = "^0.3"
 indicatif = "^0.17"
 serde = { version = "^1.0", features = ["derive"] }
