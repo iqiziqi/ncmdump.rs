@@ -1,5 +1,6 @@
-use anyhow::Result;
 use std::io::{Read, Seek, SeekFrom, Write};
+
+use crate::error::Result;
 
 const BUFFER_SIZE: usize = 8192;
 const KEY: [u8; 256] = [
@@ -90,7 +91,7 @@ where
     ///     Ok(())
     /// }
     /// ```
-    pub fn get_data(&mut self) -> Result<Vec<u8>> {
+    pub fn get_data(&mut self) -> std::io::Result<Vec<u8>> {
         let mut buffer = [0; BUFFER_SIZE];
         let mut output = Vec::new();
         while let Ok(size) = self.read(&mut buffer) {

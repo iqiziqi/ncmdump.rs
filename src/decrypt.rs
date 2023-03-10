@@ -2,9 +2,8 @@ use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::BlockDecryptMut;
 use aes::cipher::KeyInit;
 use aes::Aes128;
-use anyhow::Result;
 
-use crate::error::Errors;
+use crate::error::{Errors, Result};
 
 pub(crate) const HEADER_KEY: [u8; 16] = [
     0x68, 0x7A, 0x48, 0x52, 0x41, 0x6D, 0x73, 0x6F, 0x35, 0x6B, 0x49, 0x6E, 0x62, 0x61, 0x78, 0x57,

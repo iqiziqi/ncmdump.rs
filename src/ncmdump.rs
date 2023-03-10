@@ -1,12 +1,11 @@
 use std::io::{Read, Seek, SeekFrom, Write};
 
-use anyhow::Result;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 use crate::decrypt::{build_key_box, decrypt, HEADER_KEY, INFO_KEY};
-use crate::error::Errors;
+use crate::error::{Errors, Result};
 
 /// The music information
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -70,8 +69,9 @@ where
 
     /// Check the file format by header.
     fn check_format(buffer: &[u8]) -> Result<bool> {
-        let (buf, _) = buffer.split_at(std::mem::size_of::<u64>());
-        let temp = u64::from_ne_bytes(buf.try_into()?);
+        let buf = buffer.split_at(std::mem::size_of::<u64>()).0;
+        let bytes = buf.try_into().map_err(|_| Errors::Decode)?;
+        let temp = u64::from_ne_bytes(bytes);
         if temp != 0x4d41_4446_4e45_5443 {
             return Ok(false);
         }
@@ -80,7 +80,7 @@ where
 
     /// Get length by byte buffer.
     fn get_length(buffer: &[u8]) -> Result<u64> {
-        let bytes = buffer.try_into()?;
+        let bytes = buffer.try_into().map_err(|_| Errors::Decode)?;
         let length = u32::from_ne_bytes(bytes) as u64;
         Ok(length)
     }
@@ -123,13 +123,13 @@ where
         let mut format = [0; 10];
         let size = reader.read(&mut format)?;
         if size != 10 || !Self::check_format(&format)? {
-            return Err(Errors::InvalidFileType.into());
+            return Err(Errors::InvalidFileType);
         }
 
         let mut key_length_buffer = [0; 4];
         let read_size = reader.read(&mut key_length_buffer)? as u64;
         if read_size != 4 {
-            return Err(Errors::InvalidKeyLength.into());
+            return Err(Errors::InvalidKeyLength);
         }
         let key_start = reader.stream_position()?;
         let key_length = Self::get_length(&key_length_buffer)?;
@@ -138,7 +138,7 @@ where
         key_reader.seek(SeekFrom::Start(key_start))?;
         let key_size = key_reader.take(key_length).read_to_end(&mut key)?;
         if key_length != key_size as u64 {
-            return Err(Errors::InvalidKeyLength.into());
+            return Err(Errors::InvalidKeyLength);
         }
         let key = Self::get_key(&key)?;
         let key_box = build_key_box(&key);
@@ -147,7 +147,7 @@ where
         let mut info_length_buffer = [0; 4];
         let read_size = reader.read(&mut info_length_buffer)? as u64;
         if read_size != 4 {
-            return Err(Errors::InvalidInfoLength.into());
+            return Err(Errors::InvalidInfoLength);
         }
         let info_start = reader.stream_position()?;
         let info_length = Self::get_length(&info_length_buffer)?;
@@ -157,7 +157,7 @@ where
         let mut image_length_buffer = [0; 4];
         let read_size = reader.read(&mut image_length_buffer)?;
         if read_size != 4 {
-            return Err(Errors::InvalidImageLength.into());
+            return Err(Errors::InvalidImageLength);
         }
         let image_start = reader.stream_position()?;
         let image_length = Self::get_length(&image_length_buffer)?;
