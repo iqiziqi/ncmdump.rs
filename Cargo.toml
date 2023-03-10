@@ -35,3 +35,15 @@ default = ['ncmdump', 'qmcdump']
 ncmdump = []
 qmcdump = []
 deprecate = []
+
+[[example]]
+name = "ncmdump"
+path = "examples/ncmdump.rs"
+
+[[example]]
+name = "qmcdump"
+path = "examples/qcmdump.rs"
+
+[[example]]
+name = "ncmdump_by_read"
+path = "examples/ncmdump_by_read.rs"

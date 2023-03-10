@@ -61,7 +61,7 @@ where
     /// # use ncmdump::QmcDump;
     /// #
     /// let file = File::open("tests/test.qmcflac").expect("Can't open file");
-    /// let ncm = QmcDump::from_reader(file).unwrap();
+    /// let _ = QmcDump::from_reader(file).unwrap();
     /// ```
     pub fn from_reader(reader: S) -> Result<Self> {
         Ok(Self { reader, cursor: 0 })
