@@ -1,4 +1,8 @@
+use std::io;
+
 use thiserror::Error;
+
+pub(crate) type Result<T> = std::result::Result<T, Errors>;
 
 /// The error type for ncmdump.
 #[derive(Debug, Error)]
@@ -30,4 +34,18 @@ pub enum Errors {
     /// Unknown error
     #[error("Unknown error")]
     Unknown,
+
+    /// Decode error
+    #[error("Decode error")]
+    Decode,
+
+    /// IO error
+    #[error("IO Error: {0}")]
+    IO(String),
+}
+
+impl From<io::Error> for Errors {
+    fn from(value: io::Error) -> Self {
+        Self::IO(value.to_string())
+    }
 }
