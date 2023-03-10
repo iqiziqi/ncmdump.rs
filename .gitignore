@@ -16,4 +16,3 @@
 **/*.qmcflac
 **/*.qmc3
 !tests/test.ncm
-src/decrypt.rs

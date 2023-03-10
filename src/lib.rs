@@ -40,14 +40,14 @@
 //! ```
 //!
 #[cfg(feature = "ncmdump")]
-mod decrypt;
-#[cfg(feature = "ncmdump")]
 mod ncmdump;
 #[cfg(feature = "qmcdump")]
 mod qmcdump;
 
 pub mod error;
 
+#[cfg(feature = "ncmdump")]
+pub use crate::ncmdump::NcmInfo;
 #[cfg(feature = "ncmdump")]
 pub use crate::ncmdump::Ncmdump;
 
