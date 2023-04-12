@@ -45,6 +45,8 @@ mod ncmdump;
 mod qmcdump;
 
 pub mod error;
+#[cfg(feature = "utils")]
+pub mod utils;
 
 #[cfg(feature = "ncmdump")]
 pub use crate::ncmdump::NcmInfo;

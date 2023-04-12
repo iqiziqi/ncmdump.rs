@@ -31,10 +31,11 @@ serde_json = "^1.0"
 thiserror = "^1.0"
 
 [features]
-default = ['ncmdump', 'qmcdump']
+default = ['ncmdump', 'qmcdump', 'utils']
 ncmdump = []
 qmcdump = []
 deprecate = []
+utils = []
 
 [[example]]
 name = "ncmdump"
