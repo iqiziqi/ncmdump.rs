@@ -5,25 +5,19 @@ use std::sync::Arc;
 use std::thread;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{command, Parser};
 use glob::glob;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use thiserror::Error;
 
+#[cfg(feature = "utils")]
+use ncmdump::utils::{get_file_type, FileType};
 #[cfg(feature = "ncmdump")]
 use ncmdump::Ncmdump;
 #[cfg(feature = "qmcdump")]
 use ncmdump::QmcDump;
 
 const PROGRESS_STYLE_DUMP: &str = "[{bar:40.cyan}] |{percent:>3!}%| {msg}";
-
-enum FileType {
-    #[cfg(feature = "ncmdump")]
-    Ncm,
-    #[cfg(feature = "qmcdump")]
-    Qmc,
-    Other,
-}
 
 #[derive(Clone, Debug, Error)]
 enum Error {
@@ -39,9 +33,9 @@ enum Error {
     Worker,
 }
 
-#[derive(Clone, Debug, Parser)]
+#[derive(Clone, Debug, Default, Parser)]
 #[command(name = "ncmdump", bin_name = "ncmdump", about, version)]
-struct Command {
+pub struct Command {
     /// Specified the files to convert.
     #[arg(value_name = "FILES")]
     matchers: Vec<String>,
@@ -75,7 +69,7 @@ impl Command {
     fn get_data(
         mut dump: impl Read,
         total: &ProgressBar,
-        progress: &ProgressBar,
+        progress: &Option<ProgressBar>,
     ) -> Result<Vec<u8>> {
         let mut data = Vec::new();
         let mut buffer = [0; 1024];
@@ -85,13 +79,22 @@ impl Command {
             }
             data.write_all(&buffer[..size])?;
             total.inc(size as u64);
-            progress.inc(size as u64);
+            if let Some(p) = progress {
+                p.inc(size as u64);
+            }
         }
-        progress.finish();
+        if let Some(p) = progress {
+            p.finish();
+        }
         Ok(data)
     }
 
-    fn dump(&self, item: &Wrapper, total: &ProgressBar, progress: &ProgressBar) -> Result<()> {
+    fn dump(
+        &self,
+        item: &Wrapper,
+        total: &ProgressBar,
+        progress: &Option<ProgressBar>,
+    ) -> Result<()> {
         let file = File::open(&item.path)?;
         let data = match item.format {
             #[cfg(feature = "ncmdump")]
@@ -122,21 +125,7 @@ struct Wrapper {
 impl Wrapper {
     fn from_path(path: PathBuf) -> Result<Self> {
         let mut file = File::open(&path)?;
-        let mut head = [0; 8];
-        let format = if file.read(&mut head)? == 8 {
-            match head[..] {
-                #[cfg(feature = "ncmdump")]
-                [0x43, 0x54, 0x45, 0x4E, 0x46, 0x44, 0x41, 0x4D] => FileType::Ncm,
-                #[cfg(feature = "qmcdump")]
-                [0xA5, 0x06, 0xB7, 0x89, _, _, _, _] => FileType::Qmc,
-                #[cfg(feature = "qmcdump")]
-                [0x8A, 0x0E, 0xE5, _, _, _, _, _] => FileType::Qmc,
-                _ => FileType::Other,
-            }
-        } else {
-            FileType::Other
-        };
-
+        let format = get_file_type(&mut file)?;
         let size = file.metadata().map_err(|_| Error::Metadata)?.len();
         let name = path
             .file_name()
@@ -201,11 +190,16 @@ impl NcmdumpCli {
             let task = thread::spawn(move || {
                 let progress_style_dump = ProgressStyle::with_template(PROGRESS_STYLE_DUMP)?;
                 while let Ok(w) = rx.recv() {
-                    let current = progress.insert_from_back(
-                        1,
-                        ProgressBar::new(w.size).with_style(progress_style_dump.clone()),
-                    );
-                    current.set_message(w.name.clone());
+                    let current = if command.verbose {
+                        let current = progress.insert_from_back(
+                            1,
+                            ProgressBar::new(w.size).with_style(progress_style_dump.clone()),
+                        );
+                        current.set_message(w.name.clone());
+                        Some(current)
+                    } else {
+                        None
+                    };
                     command.dump(&w, &total, &current)?;
                 }
                 anyhow::Ok(())
@@ -222,4 +216,52 @@ impl NcmdumpCli {
 
 fn main() -> Result<()> {
     NcmdumpCli::from_command(Command::parse()).start()
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+
+    use crate::{Command, NcmdumpCli};
+
+    #[test]
+    fn test_empty_input_files_err() -> Result<()> {
+        let command = Command {
+            matchers: vec![],
+            worker: 1,
+            ..Default::default()
+        };
+        let result = NcmdumpCli::from_command(command).start();
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_worker_err() -> Result<()> {
+        let works = [0, 9, 10, 15, 100, 199];
+        for worker in works {
+            let command = Command {
+                matchers: vec![],
+                worker,
+                ..Default::default()
+            };
+            let result = NcmdumpCli::from_command(command).start();
+            assert!(result.is_err());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_worker_ok() -> Result<()> {
+        for worker in 1..=8 {
+            let command = Command {
+                matchers: vec!["./test/test.ncm".into()],
+                worker,
+                ..Default::default()
+            };
+            let result = NcmdumpCli::from_command(command).start();
+            assert!(result.is_ok());
+        }
+        Ok(())
+    }
 }
