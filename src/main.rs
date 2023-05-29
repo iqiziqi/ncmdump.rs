@@ -17,7 +17,9 @@ use ncmdump::Ncmdump;
 #[cfg(feature = "qmcdump")]
 use ncmdump::QmcDump;
 
-const PROGRESS_STYLE_DUMP: &str = "[{bar:40.cyan}] |{percent:>3!}%| {msg}";
+const PROGRESS_STYLE_DUMP: &str =
+    "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>7}/{total_bytes:7} {msg}";
+const TOTAL_STYLE_DUMP: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>7}/{total_bytes:7}";
 
 #[derive(Clone, Debug, Error)]
 enum Error {
@@ -161,7 +163,7 @@ impl NcmdumpCli {
         }
         let mut tasks = Vec::new();
         let progress = Arc::new(MultiProgress::new());
-        let total_progress_style = ProgressStyle::with_template(PROGRESS_STYLE_DUMP)?;
+        let total_progress_style = ProgressStyle::with_template(TOTAL_STYLE_DUMP)?;
         let total = Arc::new(progress.add(ProgressBar::new(0).with_style(total_progress_style)));
         let (tx, rx) = crossbeam_channel::unbounded();
 
