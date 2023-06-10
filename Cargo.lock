@@ -275,7 +275,7 @@ checksum = "f051f77a7c8e6957c0696eac88f26b0117e54f52d3fc682ab19397a8812846a4"
 
 [[package]]
 name = "ncmdump"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "aes",
  "anyhow",
