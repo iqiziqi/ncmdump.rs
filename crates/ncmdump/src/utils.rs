@@ -95,25 +95,26 @@ where
 #[cfg(test)]
 mod tests {
     use std::fs::File;
-
-    use anyhow::Result;
+    use std::io::Error;
 
     use crate::utils::{get_file_type, is_ncm_file, FileType};
 
     #[cfg(feature = "ncmdump")]
     #[test]
-    fn test_is_ncm_file_ok() -> Result<()> {
+    fn test_is_ncm_file_ok() -> Result<(), Error> {
         let mut file = File::open("./tests/test.ncm")?;
-        let result = is_ncm_file(&mut file)?;
-        assert!(result);
+        let result = is_ncm_file(&mut file);
+        assert!(result.is_ok());
+        assert!(result.unwrap());
         Ok(())
     }
 
     #[test]
-    fn test_get_file_type_ok() -> Result<()> {
+    fn test_get_file_type_ok() -> Result<(), Error> {
         let mut file = File::open("./tests/test.ncm")?;
-        let file_type = get_file_type(&mut file)?;
-        assert_eq!(file_type, FileType::Ncm);
+        let file_type = get_file_type(&mut file);
+        assert!(file_type.is_ok());
+        assert_eq!(file_type.unwrap(), FileType::Ncm);
         Ok(())
     }
 }

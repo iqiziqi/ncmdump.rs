@@ -5,7 +5,7 @@
 //! You can add this to your `Cargo.toml`:
 //!
 //! ```toml
-//! ncmdump = "0.5.0"
+//! ncmdump = "0.6.0"
 //! ```
 //!
 //! Also, you can use this command to install this crate,
@@ -19,17 +19,15 @@
 //!
 //! ```rust
 //! use std::fs::File;
-//! use std::io::Write;
+//! use std::io::{Error, Write};
 //! use std::path::Path;
 //!
-//! use anyhow::Result;
 //! use ncmdump::Ncmdump;
 //!
-//! fn main() -> Result<()> {
-//!
+//! fn main() -> Result<(), Error> {
 //!     let file = File::open("tests/test.ncm")?;
-//!     let mut ncm = Ncmdump::from_reader(file)?;
-//!     let music = ncm.get_data()?;
+//!     let mut ncm = Ncmdump::from_reader(file).expect("Can't create dump");
+//!     let music = ncm.get_data().expect("Can't get data");
 //!     let mut target = File::options()
 //!         .create(true)
 //!         .write(true)

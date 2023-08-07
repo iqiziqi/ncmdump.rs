@@ -4,14 +4,13 @@
 //! You should use your own qmcflac file instead the test file
 //!
 use std::fs::File;
-use std::io::Write;
+use std::io::{Error, Write};
 
-use anyhow::Result;
 use ncmdump::QmcDump;
 
-fn main() -> Result<()> {
+fn main() -> Result<(), Error> {
     let file = File::open("tests/test.qmcflac")?;
-    let mut qmc = QmcDump::from_reader(file)?;
+    let mut qmc = QmcDump::from_reader(file).expect("Can't create dump");
     let data = qmc.get_data()?;
 
     let mut target = File::options()

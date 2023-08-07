@@ -10,11 +10,8 @@ use glob::glob;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use thiserror::Error;
 
-#[cfg(feature = "utils")]
 use ncmdump::utils::{get_file_type, FileType};
-#[cfg(feature = "ncmdump")]
 use ncmdump::Ncmdump;
-#[cfg(feature = "qmcdump")]
 use ncmdump::QmcDump;
 
 const PROGRESS_STYLE_DUMP: &str =
@@ -99,9 +96,7 @@ impl Command {
     ) -> Result<()> {
         let file = File::open(&item.path)?;
         let data = match item.format {
-            #[cfg(feature = "ncmdump")]
             FileType::Ncm => Self::get_data(Ncmdump::from_reader(file)?, total, progress),
-            #[cfg(feature = "qmcdump")]
             FileType::Qmc => Self::get_data(QmcDump::from_reader(file)?, total, progress),
             FileType::Other => Err(Error::Format.into()),
         }?;
