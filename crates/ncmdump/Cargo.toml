@@ -1,0 +1,48 @@
+[package]
+name = "ncmdump-bin"
+version = "0.6.1"
+authors = ["iqiziqi <iqiziqi@outlook.com>"]
+edition = "2021"
+
+description = "Some copyright protection file dump."
+homepage = "https://github.com/iqiziqi/ncmdump.rs"
+documentation = "https://docs.rs/ncmdump"
+repository = "https://github.com/iqiziqi/ncmdump.rs"
+license = "MIT"
+readme = "README.md"
+keywords = ["ncm", "qmc", "music", "dump"]
+exclude = [
+    ".editorconfig",
+    ".github/**/*",
+    "*.ncm"
+]
+
+[dependencies]
+aes = "^0.8"
+base64 = "^0.21"
+cipher = { version = "^0.4", features = ["alloc", "block-padding"] }
+serde = { version = "^1.0", features = ["derive"] }
+serde_json = "^1.0"
+thiserror = "^1.0"
+
+[dev-dependencies]
+anyhow = "^1.0"
+
+[features]
+default = ['ncmdump', 'qmcdump', 'utils']
+ncmdump = []
+qmcdump = []
+deprecate = []
+utils = []
+
+[[example]]
+name = "ncmdump"
+path = "examples/ncmdump.rs"
+
+[[example]]
+name = "qmcdump"
+path = "examples/qcmdump.rs"
+
+[[example]]
+name = "ncmdump_by_read"
+path = "examples/ncmdump_by_read.rs"

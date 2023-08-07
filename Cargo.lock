@@ -281,12 +281,21 @@ dependencies = [
  "anyhow",
  "base64",
  "cipher",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "ncmdump-bin"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
  "clap",
  "crossbeam-channel",
  "glob",
  "indicatif",
- "serde",
- "serde_json",
+ "ncmdump",
  "thiserror",
 ]
 

@@ -5,14 +5,13 @@
 //! You should use your own qmcflac file instead the test file
 //!
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Error, Read, Write};
 
-use anyhow::Result;
 use ncmdump::Ncmdump;
 
-fn main() -> Result<()> {
+fn main() -> Result<(), Error> {
     let file = File::open("tests/test.ncm")?;
-    let mut ncm = Ncmdump::from_reader(file)?;
+    let mut ncm = Ncmdump::from_reader(file).expect("Can't create dump");
     let mut buf = [0; 1024];
     let mut target = File::options()
         .create(true)
