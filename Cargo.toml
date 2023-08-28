@@ -20,6 +20,10 @@ exclude = [
 [workspace]
 members = ["crates/ncmdump"]
 
+[[bin]]
+name = "ncmdump"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "^1.0"
 clap = { version = "^4.1", features = ["derive"] }
