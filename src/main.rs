@@ -63,7 +63,7 @@ impl Command {
             None => file_path.parent().ok_or(Error::Path)?,
             Some(p) => Path::new(p),
         };
-        let file_name = file_path.file_stem().ok_or(Error::Path)?;
+        let file_name = file_path.file_name().ok_or(Error::Path)?;
         let path = parent.join(file_name).with_extension(format);
         Ok(path)
     }
