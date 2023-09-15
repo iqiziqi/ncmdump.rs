@@ -193,3 +193,51 @@ fn main() -> Result<()> {
     let program = Program::new(command)?;
     program.start()
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+
+    use crate::{Command, Program};
+
+    #[test]
+    fn test_empty_input_files_err() -> Result<()> {
+        let command = Command {
+            matchers: vec![],
+            worker: 1,
+            ..Default::default()
+        };
+        let result = Program::new(command)?.start();
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_worker_err() -> Result<()> {
+        let works = [0, 9, 10, 15, 100, 199];
+        for worker in works {
+            let command = Command {
+                matchers: vec![],
+                worker,
+                ..Default::default()
+            };
+            let result = Program::new(command)?.start();
+            assert!(result.is_err());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_worker_ok() -> Result<()> {
+        for worker in 1..=8 {
+            let command = Command {
+                matchers: vec!["./test/test.ncm".into()],
+                worker,
+                ..Default::default()
+            };
+            let result = Program::new(command)?.start();
+            assert!(result.is_ok());
+        }
+        Ok(())
+    }
+}
