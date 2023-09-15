@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::thread;
 
@@ -10,24 +10,15 @@ use glob::glob;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use ncmdump::utils::FileType;
 use ncmdump::{Ncmdump, QmcDump};
-use thiserror::Error;
+
+mod errors;
+mod provider;
+
+use errors::Error;
+use provider::{DataProvider, FileProvider};
 
 const TOTAL_PSTYPE: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>10!}/{total_bytes:10!}";
 const SINGLE_PSTYPE: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>10!}/{total_bytes:10!} {msg}";
-
-#[derive(Clone, Debug, Error)]
-enum Error {
-    #[error("Can't resolve the path")]
-    Path,
-    #[error("Invalid file format")]
-    Format,
-    #[error("No file can be converted")]
-    NoFile,
-    #[error("Can't get file's metadata")]
-    Metadata,
-    #[error("Worker can't less than 0 and more than 8")]
-    Worker,
-}
 
 #[derive(Clone, Debug, Default, Parser)]
 #[command(name = "ncmdump", bin_name = "ncmdump", about, version)]
@@ -49,63 +40,6 @@ struct Command {
     /// It should more than 0 and less than 9.
     #[arg(short = 'w', long = "worker", default_value = "1")]
     worker: usize,
-}
-
-pub(crate) trait DataProvider {
-    fn get_name(&self) -> String;
-    fn get_path(&self) -> PathBuf;
-    fn get_format(&self) -> FileType;
-    fn get_size(&self) -> u64;
-}
-
-pub(crate) struct FileProvider {
-    path: PathBuf,
-    name: String,
-    format: FileType,
-    size: u64,
-}
-
-impl DataProvider for FileProvider {
-    #[inline]
-    fn get_name(&self) -> String {
-        self.name.clone()
-    }
-
-    #[inline]
-    fn get_path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    #[inline]
-    fn get_format(&self) -> FileType {
-        self.format.clone()
-    }
-
-    #[inline]
-    fn get_size(&self) -> u64 {
-        self.size
-    }
-}
-
-impl FileProvider {
-    pub(crate) fn new(path: PathBuf) -> Result<Self> {
-        let path = path.clone();
-        let mut file = File::open(path.clone())?;
-        let format = FileType::parse(&mut file)?;
-        let size = file.metadata().map_err(|_| Error::Metadata)?.len();
-        let name = path
-            .file_name()
-            .ok_or(Error::Path)?
-            .to_str()
-            .ok_or(Error::Path)?
-            .to_string();
-        Ok(Self {
-            name,
-            format,
-            path,
-            size,
-        })
-    }
 }
 
 /// The global program
