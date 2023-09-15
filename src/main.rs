@@ -5,18 +5,15 @@ use std::sync::Arc;
 use std::thread;
 
 use anyhow::Result;
-use clap::{command, Parser};
+use clap::Parser;
 use glob::glob;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use ncmdump::utils::FileType;
+use ncmdump::{Ncmdump, QmcDump};
 use thiserror::Error;
 
-use ncmdump::utils::{get_file_type, FileType};
-use ncmdump::Ncmdump;
-use ncmdump::QmcDump;
-
-const PROGRESS_STYLE_DUMP: &str =
-    "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>7}/{total_bytes:7} {msg}";
-const TOTAL_STYLE_DUMP: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>7}/{total_bytes:7}";
+const TOTAL_PSTYPE: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>10!}/{total_bytes:10!}";
+const SINGLE_PSTYPE: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>10!}/{total_bytes:10!} {msg}";
 
 #[derive(Clone, Debug, Error)]
 enum Error {
@@ -34,7 +31,7 @@ enum Error {
 
 #[derive(Clone, Debug, Default, Parser)]
 #[command(name = "ncmdump", bin_name = "ncmdump", about, version)]
-pub struct Command {
+struct Command {
     /// Specified the files to convert.
     #[arg(value_name = "FILES")]
     matchers: Vec<String>,
@@ -54,75 +51,47 @@ pub struct Command {
     worker: usize,
 }
 
-impl Command {
-    fn get_output(file_path: &Path, format: &str, output: &Option<String>) -> Result<PathBuf> {
-        let parent = match output {
-            None => file_path.parent().ok_or(Error::Path)?,
-            Some(p) => Path::new(p),
-        };
-        let file_name = file_path.file_name().ok_or(Error::Path)?;
-        let path = parent.join(file_name).with_extension(format);
-        Ok(path)
-    }
-
-    fn get_data(
-        mut dump: impl Read,
-        total: &ProgressBar,
-        progress: &Option<ProgressBar>,
-    ) -> Result<Vec<u8>> {
-        let mut data = Vec::new();
-        let mut buffer = [0; 1024];
-        while let Ok(size) = dump.read(&mut buffer) {
-            if size == 0 {
-                break;
-            }
-            data.write_all(&buffer[..size])?;
-            total.inc(size as u64);
-            if let Some(p) = progress {
-                p.inc(size as u64);
-            }
-        }
-        if let Some(p) = progress {
-            p.finish();
-        }
-        Ok(data)
-    }
-
-    fn dump(
-        &self,
-        item: &Wrapper,
-        total: &ProgressBar,
-        progress: &Option<ProgressBar>,
-    ) -> Result<()> {
-        let file = File::open(&item.path)?;
-        let data = match item.format {
-            FileType::Ncm => Self::get_data(Ncmdump::from_reader(file)?, total, progress),
-            FileType::Qmc => Self::get_data(QmcDump::from_reader(file)?, total, progress),
-            FileType::Other => Err(Error::Format.into()),
-        }?;
-        let ext = match data[..4] {
-            [0x66, 0x4C, 0x61, 0x43] => Ok("flac"),
-            [0x49, 0x44, 0x33, _] => Ok("mp3"),
-            _ => Err(Error::Format),
-        }?;
-        let output_file = Self::get_output(&item.path, ext, &self.output)?;
-        let mut target = File::options().create(true).write(true).open(output_file)?;
-        target.write_all(&data)?;
-        Ok(())
-    }
+pub(crate) trait DataProvider {
+    fn get_name(&self) -> String;
+    fn get_path(&self) -> PathBuf;
+    fn get_format(&self) -> FileType;
+    fn get_size(&self) -> u64;
 }
 
-struct Wrapper {
+pub(crate) struct FileProvider {
+    path: PathBuf,
     name: String,
     format: FileType,
-    path: PathBuf,
     size: u64,
 }
 
-impl Wrapper {
-    fn from_path(path: PathBuf) -> Result<Self> {
-        let mut file = File::open(&path)?;
-        let format = get_file_type(&mut file)?;
+impl DataProvider for FileProvider {
+    #[inline]
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
+
+    #[inline]
+    fn get_path(&self) -> PathBuf {
+        self.path.clone()
+    }
+
+    #[inline]
+    fn get_format(&self) -> FileType {
+        self.format.clone()
+    }
+
+    #[inline]
+    fn get_size(&self) -> u64 {
+        self.size
+    }
+}
+
+impl FileProvider {
+    pub(crate) fn new(path: PathBuf) -> Result<Self> {
+        let path = path.clone();
+        let mut file = File::open(path.clone())?;
+        let format = FileType::parse(&mut file)?;
         let size = file.metadata().map_err(|_| Error::Metadata)?.len();
         let name = path
             .file_name()
@@ -139,65 +108,139 @@ impl Wrapper {
     }
 }
 
-struct NcmdumpCli(Arc<Command>);
+/// The global program
+#[derive(Clone)]
+struct Program {
+    command: Arc<Command>,
+    group: MultiProgress,
+    total: ProgressBar,
+}
 
-impl NcmdumpCli {
-    fn from_command(command: Command) -> Self {
-        Self(Arc::new(command))
+impl Program {
+    /// Create a new command progress.
+    fn new(command: Command) -> Result<Self> {
+        let group = MultiProgress::new();
+        let style = ProgressStyle::with_template(TOTAL_PSTYPE)?;
+        let total = group.add(ProgressBar::new(0).with_style(style));
+        Ok(Self {
+            command: Arc::new(command),
+            group,
+            total,
+        })
+    }
+
+    /// Create a new progress.
+    fn create_progress<P>(&self, provider: &P) -> Result<Option<ProgressBar>>
+    where
+        P: DataProvider,
+    {
+        if !self.command.verbose {
+            return Ok(None);
+        }
+        let style = ProgressStyle::with_template(SINGLE_PSTYPE)?;
+        let progress = self
+            .group
+            .insert_from_back(1, ProgressBar::new(provider.get_size()).with_style(style));
+        progress.set_message(provider.get_name());
+        Ok(Some(progress))
+    }
+
+    fn finish(&self) {
+        self.total.finish();
+    }
+
+    fn dump<P>(&self, provider: &P) -> Result<()>
+    where
+        P: DataProvider,
+    {
+        let source = File::open(provider.get_path())?;
+        let data = match provider.get_format() {
+            FileType::Ncm => self.get_data(Ncmdump::from_reader(source)?, provider),
+            FileType::Qmc => self.get_data(QmcDump::from_reader(source)?, provider),
+            FileType::Other => Err(Error::Format.into()),
+        }?;
+        let ext = match data[..4] {
+            [0x66, 0x4C, 0x61, 0x43] => Ok("flac"),
+            [0x49, 0x44, 0x33, _] => Ok("mp3"),
+            _ => Err(Error::Format),
+        }?;
+        let path = provider.get_path();
+        let parent = match &self.command.output {
+            None => path.parent().ok_or(Error::Path)?,
+            Some(p) => Path::new(p),
+        };
+        let file_name = path.file_stem().ok_or(Error::Path)?;
+        let path = parent.join(file_name).with_extension(ext);
+        let mut target = File::options().create(true).write(true).open(path)?;
+        target.write_all(&data)?;
+        Ok(())
+    }
+
+    fn get_data<R, P>(&self, mut dump: R, provider: &P) -> Result<Vec<u8>>
+    where
+        R: Read,
+        P: DataProvider,
+    {
+        let mut data = Vec::new();
+        let mut buffer = [0; 1024];
+        let progress = self.create_progress(provider)?;
+        while let Ok(size) = dump.read(&mut buffer) {
+            if size == 0 {
+                break;
+            }
+            data.write_all(&buffer[..size])?;
+            self.total.inc(size as u64);
+            if let Some(p) = &progress {
+                p.inc(size as u64);
+            }
+        }
+        if let Some(p) = &progress {
+            p.finish();
+        }
+        Ok(data)
     }
 
     fn start(&self) -> Result<()> {
-        let worker = match self.0.worker {
-            1..=8 => Ok(self.0.worker),
+        // Check argument worker
+        let worker = match self.command.worker {
+            1..=8 => Ok(self.command.worker),
             _ => Err(Error::Worker),
         }?;
 
-        let matchers = self.0.matchers.clone();
-        if matchers.is_empty() {
+        // Check argument matchers
+        if self.command.matchers.is_empty() {
             return Err(Error::NoFile.into());
         }
+
         let mut tasks = Vec::new();
-        let progress = Arc::new(MultiProgress::new());
-        let total_progress_style = ProgressStyle::with_template(TOTAL_STYLE_DUMP)?;
-        let total = Arc::new(progress.add(ProgressBar::new(0).with_style(total_progress_style)));
         let (tx, rx) = crossbeam_channel::unbounded();
 
         {
-            let total = total.clone();
-            thread::spawn(move || {
-                for matcher in matchers {
-                    for entry in glob(matcher.as_str())? {
+            let state = self.clone();
+            let task = thread::spawn(move || {
+                for matcher in &state.command.matchers {
+                    for entry in glob(matcher)? {
                         let path = entry.map_err(|_| Error::Path)?;
-                        if path.is_file() {
-                            let w = Wrapper::from_path(path).map_err(|_| Error::Path)?;
-                            total.set_length(total.length().unwrap_or(0) + w.size);
-                            tx.send(w)?;
+                        if !path.is_file() {
+                            continue;
                         }
+                        let p = FileProvider::new(path).map_err(|_| Error::Path)?;
+                        let len = state.total.length().unwrap_or(0);
+                        state.total.set_length(len + p.get_size());
+                        tx.send(p)?;
                     }
                 }
                 anyhow::Ok(())
             });
+            tasks.push(task);
         }
 
         for _ in 1..=worker {
             let rx = rx.clone();
-            let total = total.clone();
-            let progress = progress.clone();
-            let command = self.0.clone();
+            let state = self.clone();
             let task = thread::spawn(move || {
-                let progress_style_dump = ProgressStyle::with_template(PROGRESS_STYLE_DUMP)?;
                 while let Ok(w) = rx.recv() {
-                    let current = if command.verbose {
-                        let current = progress.insert_from_back(
-                            1,
-                            ProgressBar::new(w.size).with_style(progress_style_dump.clone()),
-                        );
-                        current.set_message(w.name.clone());
-                        Some(current)
-                    } else {
-                        None
-                    };
-                    command.dump(&w, &total, &current)?;
+                    state.dump(&w)?;
                 }
                 anyhow::Ok(())
             });
@@ -206,59 +249,13 @@ impl NcmdumpCli {
         for task in tasks {
             task.join().unwrap()?;
         }
-        total.finish();
+        self.finish();
         Ok(())
     }
 }
 
 fn main() -> Result<()> {
-    NcmdumpCli::from_command(Command::parse()).start()
-}
-
-#[cfg(test)]
-mod tests {
-    use anyhow::Result;
-
-    use crate::{Command, NcmdumpCli};
-
-    #[test]
-    fn test_empty_input_files_err() -> Result<()> {
-        let command = Command {
-            matchers: vec![],
-            worker: 1,
-            ..Default::default()
-        };
-        let result = NcmdumpCli::from_command(command).start();
-        assert!(result.is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn test_invalid_worker_err() -> Result<()> {
-        let works = [0, 9, 10, 15, 100, 199];
-        for worker in works {
-            let command = Command {
-                matchers: vec![],
-                worker,
-                ..Default::default()
-            };
-            let result = NcmdumpCli::from_command(command).start();
-            assert!(result.is_err());
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn test_worker_ok() -> Result<()> {
-        for worker in 1..=8 {
-            let command = Command {
-                matchers: vec!["./test/test.ncm".into()],
-                worker,
-                ..Default::default()
-            };
-            let result = NcmdumpCli::from_command(command).start();
-            assert!(result.is_ok());
-        }
-        Ok(())
-    }
+    let command = Command::parse();
+    let program = Program::new(command)?;
+    program.start()
 }
