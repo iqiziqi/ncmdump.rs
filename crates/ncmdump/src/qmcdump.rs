@@ -60,7 +60,7 @@ where
     /// #
     /// # use ncmdump::QmcDump;
     /// #
-    /// let file = File::open("tests/test.qmcflac").expect("Can't open file");
+    /// let file = File::open("res/test.qmcflac").expect("Can't open file");
     /// let _ = QmcDump::from_reader(file).unwrap();
     /// ```
     pub fn from_reader(reader: S) -> Result<Self> {
@@ -80,14 +80,14 @@ where
     /// use ncmdump::QmcDump;
     ///
     /// fn main() -> Result<()> {
-    ///     let file = File::open("tests/test.qmcflac")?;
+    ///     let file = File::open("res/test.qmcflac")?;
     ///     let mut qmc = QmcDump::from_reader(file)?;
     ///     let music = qmc.get_data()?;
     ///
     ///     let mut target = File::options()
     ///         .create(true)
     ///         .write(true)
-    ///         .open("tests/test.flac")?;
+    ///         .open("res/test.flac")?;
     ///     target.write_all(&music)?;
     ///     Ok(())
     /// }
@@ -172,11 +172,11 @@ mod tests {
 
     #[test]
     fn test_qmcdump_ok() -> Result<()> {
-        let input = File::open("tests/test.qmcflac")?;
+        let input = File::open("res/test.qmcflac")?;
         let mut output = File::options()
             .create(true)
             .write(true)
-            .open("tests/test.flac")?;
+            .open("res/test.flac")?;
         let mut qmc = QmcDump::from_reader(input)?;
         let data = qmc.get_data()?;
         output.write_all(&data)?;

@@ -25,7 +25,7 @@ impl FileType {
     /// # use std::fs::File;
     /// # use ncmdump::utils::FileType;
     /// #
-    /// let mut file = File::open("./tests/test.ncm").unwrap();
+    /// let mut file = File::open("res/test.ncm").unwrap();
     /// let file_type = FileType::parse(&mut file).unwrap();
     /// ```
     pub fn parse<R>(reader: &mut R) -> Result<Self>
@@ -60,7 +60,7 @@ impl FileType {
 /// # use std::fs::File;
 /// # use ncmdump::utils::get_file_type;
 /// #
-/// let mut file = File::open("./tests/test.ncm").unwrap();
+/// let mut file = File::open("res/test.ncm").unwrap();
 /// let file_type = get_file_type(&mut file).unwrap();
 /// ```
 #[deprecated]
@@ -81,7 +81,7 @@ where
 /// # use std::fs::File;
 /// # use ncmdump::utils::is_ncm_file;
 /// #
-/// let mut file = File::open("./tests/test.ncm").unwrap();
+/// let mut file = File::open("res/test.ncm").unwrap();
 /// let result = is_ncm_file(&mut file).unwrap();
 /// ```
 #[cfg(feature = "ncmdump")]
@@ -103,7 +103,7 @@ where
 /// # use std::fs::File;
 /// # use ncmdump::utils::is_qmc_file;
 /// #
-/// let mut file = File::open("./tests/test.ncm").unwrap();
+/// let mut file = File::open("res/test.ncm").unwrap();
 /// let result = is_qmc_file(&mut file).unwrap();
 /// ```
 #[cfg(feature = "qmcdump")]
@@ -125,7 +125,7 @@ mod tests {
     #[cfg(feature = "ncmdump")]
     #[test]
     fn test_is_ncm_file_ok() -> Result<(), Error> {
-        let mut file = File::open("./tests/test.ncm")?;
+        let mut file = File::open("res/test.ncm")?;
         let result = is_ncm_file(&mut file);
         assert!(result.is_ok());
         assert!(result.unwrap());
@@ -135,7 +135,7 @@ mod tests {
     #[cfg(feature = "ncmdump")]
     #[test]
     fn test_get_file_type_ok() -> Result<(), Error> {
-        let mut file = File::open("./tests/test.ncm")?;
+        let mut file = File::open("res/test.ncm")?;
         let file_type = FileType::parse(&mut file);
         assert!(file_type.is_ok());
         assert_eq!(file_type.unwrap(), FileType::Ncm);

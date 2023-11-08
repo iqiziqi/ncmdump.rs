@@ -71,13 +71,13 @@ use ncmdump::Ncmdump;
 
 fn main() -> Result<()> {
     use std::io::Write;
-    let file = File::open("tests/test.ncm")?;
+    let file = File::open("res/test.ncm")?;
     let mut ncm = Ncmdump::from_reader(file)?;
     let music = ncm.get_data()?;
     let mut target = File::options()
         .create(true)
         .write(true)
-        .open("tests/test.flac")?;
+        .open("res/test.flac")?;
     target.write_all(&music)?;
     Ok(())
 }

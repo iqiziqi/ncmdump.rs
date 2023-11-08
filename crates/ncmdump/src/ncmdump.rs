@@ -133,7 +133,7 @@ where
     /// #
     /// # use ncmdump::Ncmdump;
     /// #
-    /// let file = File::open("tests/test.ncm").expect("Can't open file");
+    /// let file = File::open("res/test.ncm").expect("Can't open file");
     /// let _ = Ncmdump::from_reader(file).unwrap();
     /// ```
     /// Or from a Cursor.
@@ -143,7 +143,7 @@ where
     /// #
     /// # use ncmdump::Ncmdump;
     /// #
-    /// # let mut file = File::open("tests/test.ncm").expect("Can't open file.");
+    /// # let mut file = File::open("res/test.ncm").expect("Can't open file.");
     /// # let mut data = Vec::new();
     /// # file.read_to_end(&mut data).expect("Can't read file");
     /// let cursor = Cursor::new(data);
@@ -224,7 +224,7 @@ where
     /// use ncmdump::Ncmdump;
     ///
     /// fn main() -> Result<()> {
-    ///     let file = File::open("tests/test.ncm")?;
+    ///     let file = File::open("res/test.ncm")?;
     ///     let mut ncm = Ncmdump::from_reader(file)?;
     ///     let info = ncm.get_info();
     ///     println!("{:?}", info);
@@ -262,14 +262,14 @@ where
     ///
     /// fn main() -> Result<()> {
     ///     use std::io::Write;
-    /// let file = File::open("tests/test.ncm")?;
+    /// let file = File::open("res/test.ncm")?;
     ///     let mut ncm = Ncmdump::from_reader(file)?;
     ///     let image = ncm.get_image()?;
     ///
     ///     let mut target = File::options()
     ///         .create(true)
     ///         .write(true)
-    ///         .open("tests/test.jpeg")?;
+    ///         .open("res/test.jpeg")?;
     ///     target.write_all(&image)?;
     ///     Ok(())
     /// }
@@ -293,14 +293,14 @@ where
     /// use ncmdump::Ncmdump;
     ///
     /// fn main() -> Result<()> {
-    ///     let file = File::open("tests/test.ncm")?;
+    ///     let file = File::open("res/test.ncm")?;
     ///     let mut ncm = Ncmdump::from_reader(file)?;
     ///     let music = ncm.get_data()?;
     ///
     ///     let mut target = File::options()
     ///         .create(true)
     ///         .write(true)
-    ///         .open("tests/test.flac")?;
+    ///         .open("res/test.flac")?;
     ///     target.write_all(&music)?;
     ///     Ok(())
     /// }
@@ -355,14 +355,14 @@ pub mod tests {
 
     #[test]
     fn test_create_dump_ok() -> Result<()> {
-        let reader = File::open("./tests/test.ncm")?;
+        let reader = File::open("res/test.ncm")?;
         let _ = Ncmdump::from_reader(reader)?;
         Ok(())
     }
 
     #[test]
     fn test_get_info_ok() -> Result<()> {
-        let reader = File::open("./tests/test.ncm")?;
+        let reader = File::open("res/test.ncm")?;
         let mut ncm = Ncmdump::from_reader(reader)?;
         let info = ncm.get_info()?;
 
@@ -385,7 +385,7 @@ pub mod tests {
 
     #[test]
     fn test_get_image_ok() -> Result<()> {
-        let reader = File::open("./tests/test.ncm")?;
+        let reader = File::open("res/test.ncm")?;
         let mut ncm = Ncmdump::from_reader(reader)?;
         let image = ncm.get_image()?;
         let length = image.len();
@@ -411,7 +411,7 @@ pub mod tests {
 
     #[test]
     fn test_get_data_ok() -> Result<()> {
-        let reader = File::open("./tests/test.ncm")?;
+        let reader = File::open("res/test.ncm")?;
         let mut ncm = Ncmdump::from_reader(reader)?;
         let data = ncm.get_data()?;
         let length = data.len();
@@ -436,7 +436,7 @@ pub mod tests {
 
     #[test]
     fn test_encrypt_ok() -> Result<()> {
-        let reader = File::open("./tests/test.ncm")?;
+        let reader = File::open("res/test.ncm")?;
         let mut ncm = Ncmdump::from_reader(reader)?;
         let mut data = [63, 246, 41, 107];
         ncm.encrypt(0, &mut data);
@@ -446,7 +446,7 @@ pub mod tests {
 
     #[test]
     fn test_ncmdump_read_ok() -> Result<()> {
-        let reader = File::open("./tests/test.ncm")?;
+        let reader = File::open("res/test.ncm")?;
         let mut ncm = Ncmdump::from_reader(reader)?;
         let mut buf = [0; 4];
 
@@ -458,7 +458,7 @@ pub mod tests {
 
     #[test]
     fn test_ncmdump_multi_read_ok() -> Result<()> {
-        let reader = File::open("./tests/test.ncm")?;
+        let reader = File::open("res/test.ncm")?;
         let mut ncm = Ncmdump::from_reader(reader)?;
         let mut buf = [0; 4];
 
