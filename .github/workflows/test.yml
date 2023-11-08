@@ -39,5 +39,8 @@ jobs:
       - name: Test | Clippy
         run: cargo clippy
 
-      - name: Test | Unit test
-        run: cargo test --release --all-features --workspace
+      - name: Test | Unit test for ncmdump
+        run: cargo test --release --all-features --package ncmdump
+
+      - name: Test | Unit test for ncmdump-bin
+        run: cargo test --release --all-features --package ncmdump-bin
