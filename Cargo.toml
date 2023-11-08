@@ -1,6 +1,8 @@
-[package]
-name = "ncmdump"
-version = "0.6.1"
+[workspace]
+members = ["crates/ncmdump", "crates/ncmdump-bin"]
+resolver = "2"
+
+[workspace.package]
 authors = ["iqiziqi <iqiziqi@outlook.com>"]
 edition = "2021"
 
@@ -11,24 +13,7 @@ repository = "https://github.com/iqiziqi/ncmdump.rs"
 license = "MIT"
 readme = "README.md"
 keywords = ["ncm", "qmc", "music", "dump"]
-exclude = [
-    ".editorconfig",
-    ".github/**/*",
-    "*.ncm"
-]
 
-[workspace]
-members = ["crates/ncmdump"]
-
-[[bin]]
-name = "ncmdump"
-path = "src/main.rs"
-
-[dependencies]
+[workspace.dependencies]
 anyhow = "^1.0"
-clap = { version = "^4.1", features = ["derive"] }
-crossbeam-channel = "0.5.7"
-glob = "^0.3"
-indicatif = "^0.17"
-thiserror = "^1.0"
-ncmdump = { path = "crates/ncmdump", features = ["ncmdump", "qmcdump", "utils"] }
+ncmdump = { path = "crates/ncmdump" }
