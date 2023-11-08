@@ -9,14 +9,14 @@ use std::io::{Error, Write};
 use ncmdump::QmcDump;
 
 fn main() -> Result<(), Error> {
-    let file = File::open("tests/test.qmcflac")?;
+    let file = File::open("res/test.qmcflac")?;
     let mut qmc = QmcDump::from_reader(file).expect("Can't create dump");
     let data = qmc.get_data()?;
 
     let mut target = File::options()
         .create(true)
         .write(true)
-        .open("tests/test.flac")?;
+        .open("res/test.flac")?;
     target.write_all(&data)?;
     Ok(())
 }

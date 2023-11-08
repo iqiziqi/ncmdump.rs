@@ -15,4 +15,5 @@
 **/*.png
 **/*.qmcflac
 **/*.qmc3
-!tests/test.ncm
+!test.ncm
+!test.qmcflac

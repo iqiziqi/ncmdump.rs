@@ -10,13 +10,13 @@ use std::io::{Error, Read, Write};
 use ncmdump::Ncmdump;
 
 fn main() -> Result<(), Error> {
-    let file = File::open("tests/test.ncm")?;
+    let file = File::open("res/test.ncm")?;
     let mut ncm = Ncmdump::from_reader(file).expect("Can't create dump");
     let mut buf = [0; 1024];
     let mut target = File::options()
         .create(true)
         .write(true)
-        .open("tests/test.flac")?;
+        .open("res/test.flac")?;
 
     while let Ok(size) = ncm.read(&mut buf) {
         if size == 0 {
