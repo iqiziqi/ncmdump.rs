@@ -6,41 +6,21 @@ use std::thread;
 
 use anyhow::Result;
 use clap::Parser;
+use errors::Error;
 use glob::glob;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use ncmdump::utils::FileType;
 use ncmdump::{Ncmdump, QmcDump};
+use provider::{DataProvider, FileProvider};
 
+mod command;
 mod errors;
 mod provider;
 
-use errors::Error;
-use provider::{DataProvider, FileProvider};
+use crate::command::Command;
 
 const TOTAL_PSTYPE: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>10!}/{total_bytes:10!}";
 const SINGLE_PSTYPE: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>10!}/{total_bytes:10!} {msg}";
-
-#[derive(Clone, Debug, Default, Parser)]
-#[command(name = "ncmdump", bin_name = "ncmdump", about, version)]
-struct Command {
-    /// Specified the files to convert.
-    #[arg(value_name = "FILES")]
-    matchers: Vec<String>,
-
-    /// Specified the output directory.
-    /// Default it's the same directory with input file.
-    #[arg(short = 'o', long = "output")]
-    output: Option<String>,
-
-    /// Verbosely list files processing.
-    #[arg(short = 'v', long = "verbose")]
-    verbose: bool,
-
-    /// The process work count.
-    /// It should more than 0 and less than 9.
-    #[arg(short = 'w', long = "worker", default_value = "1")]
-    worker: usize,
-}
 
 /// The global program
 #[derive(Clone)]
@@ -135,17 +115,6 @@ impl Program {
     }
 
     fn start(&self) -> Result<()> {
-        // Check argument worker
-        let worker = match self.command.worker {
-            1..=8 => Ok(self.command.worker),
-            _ => Err(Error::Worker),
-        }?;
-
-        // Check argument matchers
-        if self.command.matchers.is_empty() {
-            return Err(Error::NoFile.into());
-        }
-
         let mut tasks = Vec::new();
         let (tx, rx) = crossbeam_channel::unbounded();
 
@@ -169,7 +138,7 @@ impl Program {
             tasks.push(task);
         }
 
-        for _ in 1..=worker {
+        for _ in 1..=self.command.worker {
             let rx = rx.clone();
             let state = self.clone();
             let task = thread::spawn(move || {
@@ -190,6 +159,8 @@ impl Program {
 
 fn main() -> Result<()> {
     let command = Command::parse();
+    command.invalid()?;
+
     let program = Program::new(command)?;
     program.start()
 }
