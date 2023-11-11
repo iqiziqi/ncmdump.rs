@@ -24,3 +24,5 @@ glob = "^0.3"
 indicatif = "^0.17"
 thiserror = "^1.0"
 ncmdump = { workspace = true }
+metaflac = "0.2.5"
+id3 = "1.9.0"
