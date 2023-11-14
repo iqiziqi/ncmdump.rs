@@ -7,8 +7,6 @@ use std::thread;
 use anyhow::Result;
 use clap::Parser;
 use errors::Error;
-use glob::glob;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use ncmdump::utils::FileType;
 use ncmdump::{Ncmdump, QmcDump};
 use provider::{DataProvider, FileProvider};
@@ -16,51 +14,26 @@ use provider::{DataProvider, FileProvider};
 mod command;
 mod errors;
 mod provider;
+mod state;
 
 use crate::command::Command;
-
-const TOTAL_PSTYPE: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>10!}/{total_bytes:10!}";
-const SINGLE_PSTYPE: &str = "[{bar:40.cyan}] |{percent:>3!}%| {bytes:>10!}/{total_bytes:10!} {msg}";
+use crate::state::State;
 
 /// The global program
 #[derive(Clone)]
 struct Program {
     command: Arc<Command>,
-    group: MultiProgress,
-    total: ProgressBar,
+    state: Arc<State>,
 }
 
 impl Program {
     /// Create a new command progress.
     fn new(command: Command) -> Result<Self> {
-        let group = MultiProgress::new();
-        let style = ProgressStyle::with_template(TOTAL_PSTYPE)?;
-        let total = group.add(ProgressBar::new(0).with_style(style));
+        let state = State::try_from(&command)?;
         Ok(Self {
             command: Arc::new(command),
-            group,
-            total,
+            state: Arc::new(state),
         })
-    }
-
-    /// Create a new progress.
-    fn create_progress<P>(&self, provider: &P) -> Result<Option<ProgressBar>>
-    where
-        P: DataProvider,
-    {
-        if !self.command.verbose {
-            return Ok(None);
-        }
-        let style = ProgressStyle::with_template(SINGLE_PSTYPE)?;
-        let progress = self
-            .group
-            .insert_from_back(1, ProgressBar::new(provider.get_size()).with_style(style));
-        progress.set_message(provider.get_name());
-        Ok(Some(progress))
-    }
-
-    fn finish(&self) {
-        self.total.finish();
     }
 
     fn dump<P>(&self, provider: &P) -> Result<()>
@@ -97,13 +70,13 @@ impl Program {
     {
         let mut data = Vec::new();
         let mut buffer = [0; 1024];
-        let progress = self.create_progress(provider)?;
+        let progress = self.state.create_progress(provider)?;
         while let Ok(size) = dump.read(&mut buffer) {
             if size == 0 {
                 break;
             }
             data.write_all(&buffer[..size])?;
-            self.total.inc(size as u64);
+            self.state.inc(size as u64);
             if let Some(p) = &progress {
                 p.inc(size as u64);
             }
@@ -118,25 +91,16 @@ impl Program {
         let mut tasks = Vec::new();
         let (tx, rx) = crossbeam_channel::unbounded();
 
-        {
-            let state = self.clone();
-            let task = thread::spawn(move || {
-                for matcher in &state.command.matchers {
-                    for entry in glob(matcher)? {
-                        let path = entry.map_err(|_| Error::Path)?;
-                        if !path.is_file() {
-                            continue;
-                        }
-                        let p = FileProvider::new(path).map_err(|_| Error::Path)?;
-                        let len = state.total.length().unwrap_or(0);
-                        state.total.set_length(len + p.get_size());
-                        tx.send(p)?;
-                    }
-                }
-                anyhow::Ok(())
-            });
-            tasks.push(task);
-        }
+        let items = self.command.items()?;
+        let state = self.state.clone();
+        tasks.push(thread::spawn(move || {
+            for path in items {
+                let provider = FileProvider::new(path).map_err(|_| Error::Path)?;
+                state.inc_length(provider.get_size());
+                tx.send(provider)?;
+            }
+            anyhow::Ok(())
+        }));
 
         for _ in 1..=self.command.worker {
             let rx = rx.clone();
@@ -152,7 +116,6 @@ impl Program {
         for task in tasks {
             task.join().unwrap()?;
         }
-        self.finish();
         Ok(())
     }
 }
