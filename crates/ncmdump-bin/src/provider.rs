@@ -43,7 +43,7 @@ impl DataProvider for FileProvider {
 }
 
 impl FileProvider {
-    pub(crate) fn new(path: PathBuf) -> Result<Self> {
+    pub(crate) fn new(path: PathBuf) -> Result<Self, Error> {
         let path = path.clone();
         let mut file = File::open(path.clone())?;
         let format = FileType::parse(&mut file)?;
