@@ -13,10 +13,13 @@ use provider::{DataProvider, FileProvider};
 
 mod command;
 mod errors;
+mod metadata;
 mod provider;
 mod state;
+mod utils;
 
 use crate::command::Command;
+use crate::metadata::{FlacMetadata, Metadata, Mp3Metadata};
 use crate::state::State;
 
 /// The global program
@@ -51,6 +54,7 @@ impl Program {
             [0x49, 0x44, 0x33, _] => Ok("mp3"),
             _ => Err(Error::Format),
         }?;
+
         let path = provider.get_path();
         let parent = match &self.command.output {
             None => path.parent().ok_or(Error::Path)?,
@@ -58,8 +62,31 @@ impl Program {
         };
         let file_name = path.file_stem().ok_or(Error::Path)?;
         let path = parent.join(file_name).with_extension(ext);
-        let mut target = File::options().create(true).write(true).open(path)?;
+        let mut target = File::options()
+            .create(true)
+            .write(true)
+            .open(path.clone())?;
         target.write_all(&data)?;
+        let target = File::options().create(true).write(true).open(path)?;
+        if provider.get_format() == FileType::Ncm {
+            let file = File::open(provider.get_path())?;
+            let mut dump = Ncmdump::from_reader(file)?;
+            let image = dump.get_image()?;
+            let info = dump.get_info()?;
+            if ext == "mp3" {
+                let meta = Box::new(Mp3Metadata {
+                    info: &info,
+                    image: &image,
+                });
+                meta.write_metadata(target)?;
+            } else if ext == "flac" {
+                let meta = Box::new(FlacMetadata {
+                    info: &info,
+                    image: &image,
+                });
+                meta.write_metadata(target)?;
+            }
+        }
         Ok(())
     }
 

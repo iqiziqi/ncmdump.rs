@@ -17,3 +17,5 @@
 **/*.qmc3
 !test.ncm
 !test.qmcflac
+
+.DS_Store
