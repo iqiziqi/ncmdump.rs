@@ -1,21 +1,23 @@
+use std::io::Write;
+
 use anyhow::Result;
 use id3::frame::Picture;
-use id3::TagLike;
+use id3::{TagLike, Version};
 use ncmdump::NcmInfo;
 
 use crate::utils::get_image_mime_type;
 
-trait Metadata {
-    fn write_metadata(&self) -> Result<()>;
+pub(crate) trait Metadata {
+    fn write_metadata(&self, w: impl Write) -> Result<()>;
 }
 
-struct Mp3Metadata<'a> {
-    info: &'a NcmInfo,
-    image: &'a [u8],
+pub(crate) struct Mp3Metadata<'a> {
+    pub(crate) info: &'a NcmInfo,
+    pub(crate) image: &'a [u8],
 }
 
 impl<'a> Metadata for Mp3Metadata<'a> {
-    fn write_metadata(&self) -> Result<()> {
+    fn write_metadata(&self, w: impl Write) -> Result<()> {
         let mut tag = id3::Tag::new();
         let artist = &self
             .info
@@ -36,17 +38,18 @@ impl<'a> Metadata for Mp3Metadata<'a> {
                 data: self.image.to_vec(),
             });
         }
+        tag.write_to(w, Version::Id3v24)?;
         Ok(())
     }
 }
 
-struct FlacMetadata<'a> {
-    info: &'a NcmInfo,
-    image: &'a [u8],
+pub(crate) struct FlacMetadata<'a> {
+    pub(crate) info: &'a NcmInfo,
+    pub(crate) image: &'a [u8],
 }
 
 impl<'a> Metadata for FlacMetadata<'a> {
-    fn write_metadata(&self) -> Result<()> {
+    fn write_metadata(&self, mut w: impl Write) -> Result<()> {
         let mut tag = metaflac::Tag::new();
         let mc = tag.vorbis_comments_mut();
         let artist = self
@@ -64,6 +67,7 @@ impl<'a> Metadata for FlacMetadata<'a> {
             metaflac::block::PictureType::CoverFront,
             self.image.to_vec(),
         );
+        tag.write_to(&mut w)?;
         Ok(())
     }
 }
