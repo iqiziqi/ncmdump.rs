@@ -19,17 +19,19 @@ exclude = [
 
 [dependencies]
 aes = "^0.8"
-base64 = "^0.21"
+base64 = "^0.22"
 cipher = { version = "^0.4", features = ["alloc", "block-padding"] }
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
 thiserror = "^1.0"
 
+id3 = { version = "^1.13", optional = true }
+
 [dev-dependencies]
 anyhow = { workspace = true }
 
 [features]
-default = ['ncmdump', 'qmcdump', 'utils']
+default = ['ncmdump', 'qmcdump', 'utils', 'id3']
 ncmdump = []
 qmcdump = []
 deprecate = []

@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Errors, Result};
 
+#[cfg(feature = "id3")]
+use id3::{Tag, TagLike};
+
 const HEADER_KEY: [u8; 16] = [
     0x68, 0x7A, 0x48, 0x52, 0x41, 0x6D, 0x73, 0x6F, 0x35, 0x6B, 0x49, 0x6E, 0x62, 0x61, 0x78, 0x57,
 ];
@@ -342,6 +345,37 @@ where
         };
         self.cursor = self.reader.seek(pos)? - base;
         Ok(self.cursor)
+    }
+}
+
+#[cfg(feature = "id3")]
+impl<S> crate::tag::Tag for Ncmdump<S>
+where
+    S: Read + Seek,
+{
+    fn get_tag(&mut self) -> Result<Tag> {
+        let mut result = Tag::new();
+        if let Ok(info) = self.get_info() {
+            result.set_title(info.name);
+            result.set_artist(
+                info.artist
+                    .iter()
+                    .map(|(i, _)| i.to_owned())
+                    .collect::<Vec<String>>()
+                    .join("/"),
+            );
+            result.set_album(info.album);
+            result.set_duration(info.duration as u32);
+        }
+        if let Ok(image) = self.get_image() {
+            result.add_frame(id3::frame::Picture {
+                mime_type: String::from("image/jpeg"),
+                picture_type: id3::frame::PictureType::CoverFront,
+                description: String::from("CoverFront"),
+                data: image,
+            });
+        }
+        Ok(result)
     }
 }
 

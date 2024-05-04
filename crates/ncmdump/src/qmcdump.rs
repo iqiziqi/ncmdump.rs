@@ -127,6 +127,9 @@ where
     }
 }
 
+#[cfg(feature = "id3")]
+impl<S: Read> crate::tag::Tag for QmcDump<S> {}
+
 #[cfg(test)]
 mod tests {
     use std::fs::File;

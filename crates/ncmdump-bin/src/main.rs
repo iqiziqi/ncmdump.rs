@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Seek, Write};
 use std::path::Path;
 use std::sync::Arc;
 use std::thread;
@@ -8,7 +8,7 @@ use anyhow::Result;
 use clap::Parser;
 use glob::glob;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use ncmdump::utils::FileType;
+use ncmdump::{tag::Tag, utils::FileType};
 use ncmdump::{Ncmdump, QmcDump};
 
 mod errors;
@@ -88,16 +88,20 @@ impl Program {
         P: DataProvider,
     {
         let source = File::open(provider.get_path())?;
-        let data = match provider.get_format() {
+        let (mut data, tag) = match provider.get_format() {
             FileType::Ncm => self.get_data(Ncmdump::from_reader(source)?, provider),
             FileType::Qmc => self.get_data(QmcDump::from_reader(source)?, provider),
             FileType::Other => Err(Error::Format.into()),
         }?;
-        let ext = match data[..4] {
+        let ext = match data.get_ref()[..4] {
             [0x66, 0x4C, 0x61, 0x43] => Ok("flac"),
             [0x49, 0x44, 0x33, _] => Ok("mp3"),
             _ => Err(Error::Format),
         }?;
+        if let Some(t) = tag {
+            data.rewind()?;
+            t.write_to_file(&mut data, id3::Version::Id3v24)?;
+        }
         let path = provider.get_path();
         let parent = match &self.command.output {
             None => path.parent().ok_or(Error::Path)?,
@@ -106,16 +110,20 @@ impl Program {
         let file_name = path.file_stem().ok_or(Error::Path)?;
         let path = parent.join(file_name).with_extension(ext);
         let mut target = File::options().create(true).write(true).open(path)?;
-        target.write_all(&data)?;
+        target.write_all(&data.into_inner())?;
         Ok(())
     }
 
-    fn get_data<R, P>(&self, mut dump: R, provider: &P) -> Result<Vec<u8>>
+    fn get_data<R, P>(
+        &self,
+        mut dump: R,
+        provider: &P,
+    ) -> Result<(Cursor<Vec<u8>>, Option<id3::Tag>)>
     where
-        R: Read,
+        R: Read + Tag,
         P: DataProvider,
     {
-        let mut data = Vec::new();
+        let mut data: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         let mut buffer = [0; 1024];
         let progress = self.create_progress(provider)?;
         while let Ok(size) = dump.read(&mut buffer) {
@@ -131,7 +139,7 @@ impl Program {
         if let Some(p) = &progress {
             p.finish();
         }
-        Ok(data)
+        Ok((data, dump.get_tag().ok()))
     }
 
     fn start(&self) -> Result<()> {
