@@ -6,10 +6,15 @@ use std::thread;
 
 use anyhow::Result;
 use clap::Parser;
-use errors::Error;
+
 use ncmdump::utils::FileType;
 use ncmdump::{Ncmdump, QmcDump};
-use provider::{DataProvider, FileProvider};
+
+use crate::command::Command;
+use crate::errors::Error;
+use crate::metadata::{FlacMetadata, Metadata, Mp3Metadata};
+use crate::provider::{DataProvider, FileProvider};
+use crate::state::State;
 
 mod command;
 mod errors;
@@ -17,10 +22,6 @@ mod metadata;
 mod provider;
 mod state;
 mod utils;
-
-use crate::command::Command;
-use crate::metadata::{FlacMetadata, Metadata, Mp3Metadata};
-use crate::state::State;
 
 /// The global program
 #[derive(Clone)]
@@ -30,7 +31,7 @@ struct Program {
 }
 
 impl Program {
-    /// Create a new command progress.
+    /// Create new command progress.
     fn new(command: Command) -> Result<Self> {
         let state = State::try_from(&command)?;
         Ok(Self {
@@ -65,26 +66,27 @@ impl Program {
         let mut target = File::options()
             .create(true)
             .write(true)
-            .open(path.clone())?;
-        target.write_all(&data)?;
-        let target = File::options().create(true).write(true).open(path)?;
+            .truncate(true)
+            .open(path)?;
         if provider.get_format() == FileType::Ncm {
             let file = File::open(provider.get_path())?;
             let mut dump = Ncmdump::from_reader(file)?;
             let image = dump.get_image()?;
             let info = dump.get_info()?;
             if ext == "mp3" {
-                let meta = Box::new(Mp3Metadata {
+                let meta = Mp3Metadata {
                     info: &info,
                     image: &image,
-                });
-                meta.write_metadata(target)?;
+                };
+                let buffer = meta.write_metadata(data)?;
+                target.write_all(&buffer)?;
             } else if ext == "flac" {
-                let meta = Box::new(FlacMetadata {
+                let meta = FlacMetadata {
                     info: &info,
                     image: &image,
-                });
-                meta.write_metadata(target)?;
+                };
+                let buffer = meta.write_metadata(data)?;
+                target.write_all(&buffer)?;
             }
         }
         Ok(())
