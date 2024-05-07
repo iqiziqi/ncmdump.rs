@@ -1,14 +1,15 @@
-use std::io::Write;
+use std::io::{Cursor, Write};
 
 use anyhow::Result;
-use id3::frame::Picture;
 use id3::{TagLike, Version};
+use id3::frame::Picture;
+
 use ncmdump::NcmInfo;
 
 use crate::utils::get_image_mime_type;
 
 pub(crate) trait Metadata {
-    fn write_metadata(&self, w: impl Write) -> Result<()>;
+    fn write_metadata(&self, data: Vec<u8>) -> Result<Vec<u8>>;
 }
 
 pub(crate) struct Mp3Metadata<'a> {
@@ -17,7 +18,8 @@ pub(crate) struct Mp3Metadata<'a> {
 }
 
 impl<'a> Metadata for Mp3Metadata<'a> {
-    fn write_metadata(&self, w: impl Write) -> Result<()> {
+    fn write_metadata(&self, data: Vec<u8>) -> Result<Vec<u8>> {
+        let mut cursor = Cursor::new(data.clone());
         let mut tag = id3::Tag::new();
         let artist = &self
             .info
@@ -38,8 +40,8 @@ impl<'a> Metadata for Mp3Metadata<'a> {
                 data: self.image.to_vec(),
             });
         }
-        tag.write_to(w, Version::Id3v24)?;
-        Ok(())
+        tag.write_to(&mut cursor, Version::Id3v24)?;
+        Ok(cursor.into_inner())
     }
 }
 
@@ -49,8 +51,9 @@ pub(crate) struct FlacMetadata<'a> {
 }
 
 impl<'a> Metadata for FlacMetadata<'a> {
-    fn write_metadata(&self, mut w: impl Write) -> Result<()> {
-        let mut tag = metaflac::Tag::new();
+    fn write_metadata(&self, data: Vec<u8>) -> Result<Vec<u8>> {
+        let mut tag = metaflac::Tag::read_from(&mut Cursor::new(&data))?;
+        let data = metaflac::Tag::skip_metadata(&mut Cursor::new(&data));
         let mc = tag.vorbis_comments_mut();
         let artist = self
             .info
@@ -67,7 +70,10 @@ impl<'a> Metadata for FlacMetadata<'a> {
             metaflac::block::PictureType::CoverFront,
             self.image.to_vec(),
         );
-        tag.write_to(&mut w)?;
-        Ok(())
+        tag.remove_blocks(metaflac::BlockType::Padding);
+        let mut buffer = Vec::new();
+        tag.write_to(&mut buffer)?;
+        buffer.write_all(&data)?;
+        Ok(buffer)
     }
 }
