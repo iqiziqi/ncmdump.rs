@@ -7,8 +7,8 @@ use std::thread;
 use anyhow::Result;
 use clap::Parser;
 
-use ncmdump::utils::FileType;
 use ncmdump::{Ncmdump, QmcDump};
+use ncmdump::utils::FileType;
 
 use crate::command::Command;
 use crate::errors::Error;
@@ -74,18 +74,10 @@ impl Program {
             let image = dump.get_image()?;
             let info = dump.get_info()?;
             if ext == "mp3" {
-                let meta = Mp3Metadata {
-                    info: &info,
-                    image: &image,
-                };
-                let buffer = meta.write_metadata(data)?;
+                let buffer = Mp3Metadata::new(&info, &image, &data).inject_metadata(data)?;
                 target.write_all(&buffer)?;
             } else if ext == "flac" {
-                let meta = FlacMetadata {
-                    info: &info,
-                    image: &image,
-                };
-                let buffer = meta.write_metadata(data)?;
+                let buffer = FlacMetadata::new(&info, &image, &data).inject_metadata(data)?;
                 target.write_all(&buffer)?;
             }
         }
