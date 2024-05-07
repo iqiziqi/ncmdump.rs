@@ -1,78 +1,83 @@
 use std::io::{Cursor, Write};
 
 use anyhow::Result;
-use id3::{TagLike, Version};
 use id3::frame::Picture;
+use id3::{TagLike, Version};
 
 use ncmdump::NcmInfo;
 
 use crate::utils::get_image_mime_type;
 
 pub(crate) trait Metadata {
-    fn write_metadata(&self, data: Vec<u8>) -> Result<Vec<u8>>;
+    /// Get the data with metadata.
+    fn inject_metadata(&mut self, data: Vec<u8>) -> Result<Vec<u8>>;
 }
 
-pub(crate) struct Mp3Metadata<'a> {
-    pub(crate) info: &'a NcmInfo,
-    pub(crate) image: &'a [u8],
-}
+pub(crate) struct Mp3Metadata(id3::Tag);
 
-impl<'a> Metadata for Mp3Metadata<'a> {
-    fn write_metadata(&self, data: Vec<u8>) -> Result<Vec<u8>> {
-        let mut cursor = Cursor::new(data.clone());
-        let mut tag = id3::Tag::new();
-        let artist = &self
-            .info
+impl Mp3Metadata {
+    pub(crate) fn new(info: &NcmInfo, image: &[u8], data: &[u8]) -> Self {
+        let mut tag = id3::Tag::read_from(data).unwrap_or_else(|_| id3::Tag::new());
+        let artist = info
             .artist
             .iter()
             .map(|item| item.0.to_owned())
             .collect::<Vec<String>>()
             .join("/");
-        tag.set_title(&self.info.name);
-        tag.set_album(&self.info.album);
+        tag.set_title(&info.name);
+        tag.set_album(&info.album);
         tag.set_artist(artist);
-
-        if !self.image.is_empty() {
+        if !image.is_empty() {
             tag.add_frame(Picture {
-                mime_type: get_image_mime_type(self.image).to_owned(),
+                mime_type: get_image_mime_type(image).to_owned(),
                 picture_type: id3::frame::PictureType::CoverFront,
                 description: "".to_string(),
-                data: self.image.to_vec(),
+                data: image.to_vec(),
             });
         }
-        tag.write_to(&mut cursor, Version::Id3v24)?;
+        Self(tag)
+    }
+}
+
+impl Metadata for Mp3Metadata {
+    fn inject_metadata(&mut self, data: Vec<u8>) -> Result<Vec<u8>> {
+        let mut cursor = Cursor::new(data);
+        self.0.write_to(&mut cursor, Version::Id3v24)?;
         Ok(cursor.into_inner())
     }
 }
 
-pub(crate) struct FlacMetadata<'a> {
-    pub(crate) info: &'a NcmInfo,
-    pub(crate) image: &'a [u8],
-}
+pub(crate) struct FlacMetadata(metaflac::Tag);
 
-impl<'a> Metadata for FlacMetadata<'a> {
-    fn write_metadata(&self, data: Vec<u8>) -> Result<Vec<u8>> {
-        let mut tag = metaflac::Tag::read_from(&mut Cursor::new(&data))?;
-        let data = metaflac::Tag::skip_metadata(&mut Cursor::new(&data));
+impl FlacMetadata {
+    pub(crate) fn new(info: &NcmInfo, image: &[u8], data: &[u8]) -> Self {
+        let mut tag = metaflac::Tag::read_from(&mut Cursor::new(&data))
+            .unwrap_or_else(|_| metaflac::Tag::new());
         let mc = tag.vorbis_comments_mut();
-        let artist = self
-            .info
+        let artist = info
             .artist
             .iter()
             .cloned()
             .map(|item| item.0)
             .collect::<Vec<String>>();
-        mc.set_title(vec![self.info.name.to_string()]);
-        mc.set_album(vec![self.info.album.to_string()]);
+        mc.set_title(vec![info.name.to_string()]);
+        mc.set_album(vec![info.album.to_string()]);
         mc.set_artist(artist);
         tag.add_picture(
-            get_image_mime_type(self.image),
+            get_image_mime_type(image),
             metaflac::block::PictureType::CoverFront,
-            self.image.to_vec(),
+            image.to_vec(),
         );
-        tag.remove_blocks(metaflac::BlockType::Padding);
+        Self(tag)
+    }
+}
+
+impl Metadata for FlacMetadata {
+    fn inject_metadata(&mut self, data: Vec<u8>) -> Result<Vec<u8>> {
+        let data = metaflac::Tag::skip_metadata(&mut Cursor::new(&data));
         let mut buffer = Vec::new();
-        tag.write_to(&mut buffer)?;
+        self.0.remove_blocks(metaflac::BlockType::Padding);
+        self.0.write_to(&mut buffer)?;
         buffer.write_all(&data)?;
         Ok(buffer)
     }
