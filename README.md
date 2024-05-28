@@ -2,8 +2,8 @@
 
 ![](https://github.com/iqiziqi/ncmdump.rs/workflows/test/badge.svg)
 ![](https://github.com/iqiziqi/ncmdump.rs/workflows/deploy/badge.svg)
-![](https://img.shields.io/crates/v/ncmdump)
-![](https://img.shields.io/crates/d/ncmdump)
+[![](https://img.shields.io/crates/v/ncmdump)](https://crates.io/crates/ncmdump)
+[![](https://img.shields.io/crates/d/ncmdump)](https://crates.io/crates/ncmdump)
 
 ## Credit
 
@@ -50,7 +50,7 @@ Options:
 You can add this to your `Cargo.toml`:
 
 ```toml
-ncmdump = "0.6.0"
+ncmdump = "0.7.0"
 ```
 
 Also, you can use this command to install this crate,

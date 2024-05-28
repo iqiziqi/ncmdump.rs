@@ -15,6 +15,7 @@ fn main() -> Result<(), Error> {
     let mut buf = [0; 1024];
     let mut target = File::options()
         .create(true)
+        .truncate(true)
         .write(true)
         .open("res/test.flac")?;
 

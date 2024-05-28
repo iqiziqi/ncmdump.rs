@@ -58,7 +58,11 @@ jobs:
           restore-keys: target-${{ matrix.target }}-${{ github.run_id }}
 
       - name: Build | Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --package ncmdump-bin --target ${{ matrix.target }}
+
+      - name: Build | Strip
+        if: matrix.os != 'windows-latest'
+        run: strip target/${{ matrix.target }}/release ncmdump
 
       - name: Build | Bundle Win
         if: matrix.os == 'windows-latest'
