@@ -5,7 +5,7 @@
 //! You can add this to your `Cargo.toml`:
 //!
 //! ```toml
-//! ncmdump = "0.6.0"
+//! ncmdump = "0.7.0"
 //! ```
 //!
 //! Also, you can use this command to install this crate,
@@ -38,6 +38,13 @@
 //! ```
 //!
 #[cfg(feature = "ncmdump")]
+pub use crate::ncmdump::Ncmdump;
+#[cfg(feature = "ncmdump")]
+pub use crate::ncmdump::NcmInfo;
+#[cfg(feature = "qmcdump")]
+pub use crate::qmcdump::QmcDump;
+
+#[cfg(feature = "ncmdump")]
 mod ncmdump;
 #[cfg(feature = "qmcdump")]
 mod qmcdump;
@@ -46,10 +53,3 @@ pub mod error;
 #[cfg(feature = "utils")]
 pub mod utils;
 
-#[cfg(feature = "ncmdump")]
-pub use crate::ncmdump::NcmInfo;
-#[cfg(feature = "ncmdump")]
-pub use crate::ncmdump::Ncmdump;
-
-#[cfg(feature = "qmcdump")]
-pub use crate::qmcdump::QmcDump;

@@ -35,10 +35,10 @@ jobs:
           toolchain: stable
 
       - name: Deploy | Package
-        run: cargo package
+        run: cargo package --package ncmdump
 
       - name: Deploy | List packaged files
-        run: cargo package --list
+        run: cargo package --package ncmdump --list
 
       - name: Deploy | Publish
-        run: cargo publish --token ${{secrets.crate_token}}
+        run: cargo publish --package ncmdump --token ${{secrets.crate_token}}
