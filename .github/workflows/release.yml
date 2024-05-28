@@ -62,7 +62,7 @@ jobs:
 
       - name: Build | Strip
         if: matrix.os != 'windows-latest'
-        run: strip target/${{ matrix.target }}/release ncmdump
+        run: strip target/${{ matrix.target }}/release/ncmdump
 
       - name: Build | Bundle Win
         if: matrix.os == 'windows-latest'
