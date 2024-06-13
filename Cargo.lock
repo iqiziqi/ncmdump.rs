@@ -351,7 +351,7 @@ dependencies = [
 
 [[package]]
 name = "ncmdump"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "aes",
  "anyhow",
@@ -364,7 +364,7 @@ dependencies = [
 
 [[package]]
 name = "ncmdump-bin"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "clap",
