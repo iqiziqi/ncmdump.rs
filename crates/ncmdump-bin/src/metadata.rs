@@ -1,8 +1,8 @@
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Seek, SeekFrom, Write};
 
 use anyhow::Result;
-use id3::frame::Picture;
 use id3::{TagLike, Version};
+use id3::frame::Picture;
 
 use ncmdump::NcmInfo;
 
@@ -42,7 +42,8 @@ impl Mp3Metadata {
 impl Metadata for Mp3Metadata {
     fn inject_metadata(&mut self, data: Vec<u8>) -> Result<Vec<u8>> {
         let mut cursor = Cursor::new(data);
-        self.0.write_to(&mut cursor, Version::Id3v24)?;
+        _ = cursor.seek(SeekFrom::Start(0));
+        self.0.write_to_file(&mut cursor, Version::Id3v24)?;
         Ok(cursor.into_inner())
     }
 }
