@@ -64,9 +64,14 @@ impl Command {
     pub(crate) fn items(&self) -> Result<Vec<PathBuf>, Error> {
         if self.matchers.is_empty() {
             let directory = self.directory.clone().unwrap();
-            let paths = ScanDir::files().read(directory, 
+            let mut paths = Vec::new(); 
+            let _ = ScanDir::files().read(directory, 
             |iter| {
-                iter.map(|(entry, _) | entry.path()).collect()
+                for (entry, _) in iter {
+                    if entry.path().is_file() {
+                        paths.push(entry.path())
+                    }
+                }
             }).unwrap();
             return Ok(paths);
         }
