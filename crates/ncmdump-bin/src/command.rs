@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser;
 use glob::glob;
+use scan_dir::ScanDir;
 
 use crate::errors::Error;
 
@@ -12,6 +13,10 @@ pub(crate) struct Command {
     /// Specified the files to convert.
     #[arg(value_name = "FILES")]
     pub(crate) matchers: Vec<String>,
+
+    /// Specified the input directory.
+    #[arg(short = 'd', long = "directory", help = "The input directory containing files to convert.")]
+    pub(crate) directory: Option<String>,
 
     /// Specified the output directory.
     /// Default it's the same directory with input file.
@@ -35,15 +40,37 @@ impl Command {
             return Err(Error::Worker);
         }
 
-        // Check argument matchers
-        if self.matchers.is_empty() {
-            return Err(Error::NoFile);
+        let cloned_directory = self.directory.clone();
+
+        if self.directory.is_none() {
+            // Check argument matchers
+            if self.matchers.is_empty() {
+                return Err(Error::NoFile);
+            }
+            return Ok(());
+        }
+
+        if !self.matchers.is_empty() {
+            return Err(Error::DirOrFiles);
+        }
+
+        if !PathBuf::from(cloned_directory.unwrap()).is_dir() {
+            return Err(Error::Path);
         }
 
         Ok(())
     }
 
     pub(crate) fn items(&self) -> Result<Vec<PathBuf>, Error> {
+        if self.matchers.is_empty() {
+            let directory = self.directory.clone().unwrap();
+            let paths = ScanDir::files().read(directory, 
+            |iter| {
+                iter.map(|(entry, _) | entry.path()).collect()
+            }).unwrap();
+            return Ok(paths);
+        }
+
         let mut paths = Vec::new();
         for matcher in &self.matchers {
             for entry in glob(matcher)? {

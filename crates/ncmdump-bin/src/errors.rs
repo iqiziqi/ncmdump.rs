@@ -18,6 +18,8 @@ pub enum Error {
     Worker,
     #[error("Dump err: {0}")]
     Dump(String),
+    #[error("Directory or files cannot be put at the same time")]
+    DirOrFiles,
 }
 
 impl From<PatternError> for Error {
