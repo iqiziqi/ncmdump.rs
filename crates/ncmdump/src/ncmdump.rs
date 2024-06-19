@@ -1,11 +1,13 @@
 use aes::Aes128;
+use serde::de::{self, Visitor};
+use std::fmt;
 use std::io::{Read, Seek, SeekFrom, Write};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use cipher::block_padding::Pkcs7;
 use cipher::{BlockDecryptMut, KeyInit};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{Errors, Result};
 
@@ -17,14 +19,44 @@ const INFO_KEY: [u8; 16] = [
     0x23, 0x31, 0x34, 0x6C, 0x6A, 0x6B, 0x5F, 0x21, 0x5C, 0x5D, 0x26, 0x30, 0x55, 0x3C, 0x27, 0x28,
 ];
 
+
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum NcmId {
+    String(String),
+    Integer(u64),
+}
+
 /// The ncm file information.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct NcmInfo {
+pub struct RawNcmInfo {
     /// The name of music
     #[serde(rename = "musicName")]
     pub name: String,
     /// The id of music
     #[serde(rename = "musicId")]
+    pub id: NcmId,
+    /// The album of music, it's an url
+    pub album: String,
+    /// The artist of music, first item is name, second item is id
+    pub artist: Vec<(String, NcmId)>,
+    // The bit rate of music
+    pub bitrate: NcmId,
+    /// The duration of music
+    pub duration: NcmId,
+    /// The format of music, is maybe 'mp3' or 'flac'
+    pub format: String,
+    /// The id of MV
+    #[serde(rename = "mvId")]
+    pub mv_id: Option<NcmId>,
+    /// The alias of music
+    pub alias: Option<Vec<String>>,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct NcmInfo {
+    pub name: String,
+    /// The id of music
     pub id: u64,
     /// The album of music, it's an url
     pub album: String,
@@ -37,7 +69,6 @@ pub struct NcmInfo {
     /// The format of music, is maybe 'mp3' or 'flac'
     pub format: String,
     /// The id of MV
-    #[serde(rename = "mvId")]
     pub mv_id: Option<u64>,
     /// The alias of music
     pub alias: Option<Vec<String>>,
@@ -53,6 +84,34 @@ where
     info: (u64, u64),
     image: (u64, u64),
     key_box: Vec<usize>,
+}
+
+impl NcmInfo {
+    pub fn from(raw_info: RawNcmInfo) -> Self {
+        Self {
+            name: raw_info.name,
+            id: raw_info.id.get_id(),
+            album: raw_info.album,
+            artist: raw_info.artist.into_iter().map(|(name, id)| (name, id.get_id())).collect(),
+            bitrate: raw_info.bitrate.get_id(),
+            duration: raw_info.duration.get_id(),
+            format: raw_info.format,
+            mv_id: match raw_info.mv_id {
+                Some(id) => Some(id.get_id()),
+                None => None,
+            },
+            alias: raw_info.alias,
+        }
+    }
+}
+
+impl NcmId {
+    pub fn get_id(self) -> u64 {
+        match self {
+            NcmId::String(s) => s.parse().unwrap(),
+            NcmId::Integer(num) => num,
+        }
+    }
 }
 
 impl<S> Ncmdump<S>
@@ -245,8 +304,8 @@ where
         let info_str =
             String::from_utf8(info_data[6..].to_vec()).map_err(|_| Errors::InfoDecodeError)?;
         let info =
-            serde_json::from_str::<NcmInfo>(&info_str).map_err(|_| Errors::InfoDecodeError)?;
-        Ok(info)
+            serde_json::from_str::<RawNcmInfo>(&info_str).map_err(|_| Errors::InfoDecodeError)?;
+        Ok(NcmInfo::from(info))
     }
 
     /// Get the image bytes from ncmdump, if it's exists.
