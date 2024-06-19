@@ -1,13 +1,11 @@
 use aes::Aes128;
-use serde::de::{self, Visitor};
-use std::fmt;
 use std::io::{Read, Seek, SeekFrom, Write};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use cipher::block_padding::Pkcs7;
 use cipher::{BlockDecryptMut, KeyInit};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::error::{Errors, Result};
 
@@ -90,14 +88,14 @@ impl NcmInfo {
     pub fn from(raw_info: RawNcmInfo) -> Self {
         Self {
             name: raw_info.name,
-            id: raw_info.id.get_id(),
+            id: raw_info.id.get_id().unwrap(),
             album: raw_info.album,
-            artist: raw_info.artist.into_iter().map(|(name, id)| (name, id.get_id())).collect(),
-            bitrate: raw_info.bitrate.get_id(),
-            duration: raw_info.duration.get_id(),
+            artist: raw_info.artist.into_iter().map(|(name, id)| (name, id.get_id().unwrap())).collect(),
+            bitrate: raw_info.bitrate.get_id().unwrap(),
+            duration: raw_info.duration.get_id().unwrap(),
             format: raw_info.format,
             mv_id: match raw_info.mv_id {
-                Some(id) => Some(id.get_id()),
+                Some(id) => id.get_id(),
                 None => None,
             },
             alias: raw_info.alias,
@@ -106,10 +104,15 @@ impl NcmInfo {
 }
 
 impl NcmId {
-    pub fn get_id(self) -> u64 {
+    pub fn get_id(self) -> Option<u64> {
         match self {
-            NcmId::String(s) => s.parse().unwrap(),
-            NcmId::Integer(num) => num,
+            NcmId::String(s) => {
+                if s.is_empty() {
+                    return None;
+                }
+                s.parse().ok()
+            },
+            NcmId::Integer(num) => Some(num),
         }
     }
 }
