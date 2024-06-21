@@ -1,10 +1,10 @@
-use aes::Aes128;
 use std::io::{Read, Seek, SeekFrom, Write};
 
-use base64::engine::general_purpose::STANDARD;
+use aes::Aes128;
 use base64::Engine;
-use cipher::block_padding::Pkcs7;
+use base64::engine::general_purpose::STANDARD;
 use cipher::{BlockDecryptMut, KeyInit};
+use cipher::block_padding::Pkcs7;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Errors, Result};
@@ -16,7 +16,6 @@ const HEADER_KEY: [u8; 16] = [
 const INFO_KEY: [u8; 16] = [
     0x23, 0x31, 0x34, 0x6C, 0x6A, 0x6B, 0x5F, 0x21, 0x5C, 0x5D, 0x26, 0x30, 0x55, 0x3C, 0x27, 0x28,
 ];
-
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
@@ -84,35 +83,41 @@ where
     key_box: Vec<usize>,
 }
 
-impl NcmInfo {
-    pub fn from(raw_info: RawNcmInfo) -> Self {
-        Self {
+impl TryFrom<RawNcmInfo> for NcmInfo {
+    type Error = Errors;
+
+    fn try_from(raw_info: RawNcmInfo) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
             name: raw_info.name,
-            id: raw_info.id.get_id().unwrap(),
+            id: raw_info.id.get_id()?,
             album: raw_info.album,
-            artist: raw_info.artist.into_iter().map(|(name, id)| (name, id.get_id().unwrap())).collect(),
-            bitrate: raw_info.bitrate.get_id().unwrap(),
-            duration: raw_info.duration.get_id().unwrap(),
+            artist: raw_info
+                .artist
+                .into_iter()
+                .map(|(name, id)| Ok((name, id.get_id()?)))
+                .collect::<Result<Vec<(String, u64)>>>()?,
+            bitrate: raw_info.bitrate.get_id()?,
+            duration: raw_info.duration.get_id()?,
             format: raw_info.format,
             mv_id: match raw_info.mv_id {
-                Some(id) => id.get_id(),
+                Some(id) => Some(id.get_id()?),
                 None => None,
             },
             alias: raw_info.alias,
-        }
+        })
     }
 }
 
 impl NcmId {
-    pub fn get_id(self) -> Option<u64> {
+    pub fn get_id(self) -> Result<u64> {
         match self {
             NcmId::String(s) => {
                 if s.is_empty() {
-                    return None;
+                    return Err(Errors::InfoDecodeError);
                 }
-                s.parse().ok()
-            },
-            NcmId::Integer(num) => Some(num),
+                s.parse().map_err(|_| Errors::InfoDecodeError)
+            }
+            NcmId::Integer(num) => Ok(num),
         }
     }
 }
@@ -308,7 +313,7 @@ where
             String::from_utf8(info_data[6..].to_vec()).map_err(|_| Errors::InfoDecodeError)?;
         let info =
             serde_json::from_str::<RawNcmInfo>(&info_str).map_err(|_| Errors::InfoDecodeError)?;
-        Ok(NcmInfo::from(info))
+        NcmInfo::try_from(info)
     }
 
     /// Get the image bytes from ncmdump, if it's exists.
@@ -443,6 +448,22 @@ pub mod tests {
             },
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_ncm_info_convert_error() {
+        let result = NcmInfo::try_from(RawNcmInfo {
+            name: "".to_string(),
+            id: NcmId::String(String::from("")),
+            album: "".to_string(),
+            artist: vec![],
+            bitrate: NcmId::String(String::from("")),
+            duration: NcmId::String(String::from("")),
+            format: "".to_string(),
+            mv_id: None,
+            alias: None,
+        });
+        assert!(result.is_err());
     }
 
     #[test]
