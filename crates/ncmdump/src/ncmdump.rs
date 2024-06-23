@@ -83,28 +83,29 @@ where
     key_box: Vec<usize>,
 }
 
-impl TryFrom<RawNcmInfo> for NcmInfo {
-    type Error = Errors;
-
-    fn try_from(raw_info: RawNcmInfo) -> std::result::Result<Self, Self::Error> {
-        Ok(Self {
+impl From<RawNcmInfo> for NcmInfo {
+    fn from(raw_info: RawNcmInfo) -> Self {
+        Self {
             name: raw_info.name,
-            id: raw_info.id.get_id()?,
+            id: raw_info.id.get_id().unwrap_or(0),
             album: raw_info.album,
             artist: raw_info
                 .artist
                 .into_iter()
-                .map(|(name, id)| Ok((name, id.get_id()?)))
-                .collect::<Result<Vec<(String, u64)>>>()?,
-            bitrate: raw_info.bitrate.get_id()?,
-            duration: raw_info.duration.get_id()?,
+                .map(|(name, id)| (name, id.get_id().unwrap_or(0)))
+                .collect::<Vec<(String, u64)>>(),
+            bitrate: raw_info.bitrate.get_id().unwrap_or(0),
+            duration: raw_info.duration.get_id().unwrap_or(0),
             format: raw_info.format,
             mv_id: match raw_info.mv_id {
-                Some(id) => Some(id.get_id()?),
+                Some(id) => match id.get_id() {
+                    Ok(inner) => Some(inner),
+                    Err(_) => None,
+                },
                 None => None,
             },
             alias: raw_info.alias,
-        })
+        }
     }
 }
 
@@ -313,7 +314,7 @@ where
             String::from_utf8(info_data[6..].to_vec()).map_err(|_| Errors::InfoDecodeError)?;
         let info =
             serde_json::from_str::<RawNcmInfo>(&info_str).map_err(|_| Errors::InfoDecodeError)?;
-        NcmInfo::try_from(info)
+        Ok(NcmInfo::from(info))
     }
 
     /// Get the image bytes from ncmdump, if it's exists.
@@ -451,8 +452,8 @@ pub mod tests {
     }
 
     #[test]
-    fn test_ncm_info_convert_error() {
-        let result = NcmInfo::try_from(RawNcmInfo {
+    fn test_ncm_info_convert_ok() {
+        let info = NcmInfo::from(RawNcmInfo {
             name: "".to_string(),
             id: NcmId::String(String::from("")),
             album: "".to_string(),
@@ -463,7 +464,132 @@ pub mod tests {
             mv_id: None,
             alias: None,
         });
-        assert!(result.is_err());
+        assert_eq!(info.id, 0);
+        assert_eq!(info.artist, Vec::new());
+        assert_eq!(info.bitrate, 0);
+        assert_eq!(info.duration, 0);
+    }
+
+    #[test]
+    fn test_ncm_info_deserialize_golden_hour_ok() -> Result<()> {
+        let raw = serde_json::from_slice::<RawNcmInfo>(
+            br#"{
+    "musicId": 1958557540,
+    "musicName": "golden hour",
+    "artist": [
+        [
+            "JVKE",
+            32988392
+        ]
+    ],
+    "albumId": 152231212,
+    "album": "this is what ____ feels like (Vol. 1-4)",
+    "albumPicDocId": "109951167909857256",
+    "albumPic": "https://p3.music.126.net/xKRQRZxEClE6653o7NbHiw==/109951167909857256.jpg",
+    "bitrate": 320000,
+    "mp3DocId": "d919d45cba30d6d5e5daff43b71cca8a",
+    "duration": 209259,
+    "mvId": 14570752,
+    "alias": [],
+    "transNames": [],
+    "format": "mp3",
+    "flag": 260
+}"#,
+        )?;
+        let info = NcmInfo::from(raw);
+        assert_eq!(info.id, 1958557540);
+        assert_eq!(info.artist, vec!((String::from("JVKE"), 32988392),));
+        assert_eq!(info.bitrate, 320000);
+        assert_eq!(info.duration, 209259);
+        assert_eq!(info.mv_id, Some(14570752));
+        Ok(())
+    }
+
+    #[test]
+    fn test_ncm_info_deserialize_endless_summer_ok() -> Result<()> {
+        let raw = serde_json::from_slice::<RawNcmInfo>(
+            br#"{
+    "musicId": "2062898402",
+    "musicName": "Endless Summer",
+    "artist": [
+        [
+            "Alan Walker",
+            "1045123"
+        ],
+        [
+            "Zak Abel",
+            "1053190"
+        ]
+    ],
+    "albumId": "178429151",
+    "album": "Walkerworld",
+    "albumPicDocId": "109951169035717968",
+    "albumPic": "http://p3.music.126.net/V4y-2EL08KAaHWLa5wYJFw==/109951169035717968.jpg",
+    "bitrate": 320000,
+    "mp3DocId": "d0e253a78e474075cced9a9f7a35498c",
+    "duration": 187040,
+    "mvId": "14648342",
+    "transNames": [],
+    "format": "mp3",
+    "fee": 8,
+    "volumeDelta": -10.2386,
+    "privilege": {
+        "flag": 1277956
+    }
+}"#,
+        )?;
+        let info = NcmInfo::from(raw);
+        assert_eq!(info.id, 2062898402);
+        assert_eq!(
+            info.artist,
+            vec!(
+                (String::from("Alan Walker"), 1045123),
+                (String::from("Zak Abel"), 1053190)
+            )
+        );
+        assert_eq!(info.bitrate, 320000);
+        assert_eq!(info.duration, 187040);
+        assert_eq!(info.mv_id, Some(14648342));
+        Ok(())
+    }
+
+    #[test]
+    fn test_ncm_info_deserialize_eternal_regret_ok() -> Result<()> {
+        let raw = serde_json::from_slice::<RawNcmInfo>(
+            br#"{
+   "musicId": "2056228066",
+   "musicName": "Eternal regret",
+   "artist": [
+      [
+         "AnRain",
+         "35516167"
+      ]
+   ],
+   "albumId": "167614757",
+   "album": "Eternal regret",
+   "albumPicDocId": "109951168681303606",
+   "albumPic": "http://p4.music.126.net/XfUBgbH9RDQqBcStBVa-Pw==/109951168681303606.jpg",
+   "bitrate": 320000,
+   "mp3DocId": "d27e546865e86910e1da2ccbefd00a15",
+   "duration": 186741,
+   "mvId": "",
+   "alias": [],
+   "transNames": [],
+   "format": "mp3",
+   "fee": 8,
+   "volumeDelta": -8.0989,
+   "privilege": {
+      "flag": 1544198
+   }
+}"#,
+        )?;
+        let info = NcmInfo::from(raw);
+        assert_eq!(info.id, 2056228066);
+        assert_eq!(info.artist, vec!((String::from("AnRain"), 35516167)));
+        assert_eq!(info.bitrate, 320000);
+        assert_eq!(info.duration, 186741);
+        assert_eq!(info.mv_id, None);
+        Ok(())
     }
 
     #[test]
