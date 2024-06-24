@@ -50,7 +50,7 @@ Options:
 You can add this to your `Cargo.toml`:
 
 ```toml
-ncmdump = "0.7.1"
+ncmdump = "0.7.2"
 ```
 
 Also, you can use this command to install this crate,
