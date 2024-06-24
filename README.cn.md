@@ -7,30 +7,30 @@
 
 [[English](./README.md)] [[中文](./README.cn)]
 
-## Credit
+## 致谢
 
-### Origin
+### 原始仓库
 
-* [anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump): Original repository
-* [MegrezZhu/qmcdump](https://github.com/MegrezZhu/qmcdump): Original repository
+* [anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump)
+* [MegrezZhu/qmcdump](https://github.com/MegrezZhu/qmcdump)
 
-## Binary Usage
+## 使用方法（二进制文件使用）
 
-### Install
+### 安装
 
-You can install by Cargo.
+通过 Cargo 工具进行安装。
 
 ```shell
 cargo install ncmdump
 ```
 
-### Simple usage
+### 简单使用
 
 ```shell
 ncmdump [FILES]...
 ```
 
-### More options
+### 更多选项
 
 ```text
 Usage: ncmdump [OPTIONS] [FILES]...
@@ -45,24 +45,23 @@ Options:
   -V, --version          Print version
 ```
 
-## Library Usage
+## 使用方法（作为库使用）
 
-### Install
+### 安装
 
-You can add this to your `Cargo.toml`:
+在你的 `Cargo.toml` 文件中添加依赖：
 
 ```toml
 ncmdump = "0.7.2"
 ```
 
-Also, you can use this command to install this crate,
-if you installed [cargo-edit](https://github.com/killercup/cargo-edit)
+或者，如果安装了 [cargo-edit](https://github.com/killercup/cargo-edit)，你可以使用命令：
 
 ```shell
 cargo add ncmdump
 ```
 
-### Simple Usage
+### 简单用法
 
 ```rust
 use std::fs::File;
@@ -85,4 +84,4 @@ fn main() -> Result<()> {
 }
 ```
 
-For more usage, please check the [document](https://docs.rs/ncmdump).
+更多的用法, 可以查看[文档](https://docs.rs/ncmdump).
