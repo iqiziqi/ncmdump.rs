@@ -5,7 +5,7 @@
 [![](https://img.shields.io/crates/v/ncmdump)](https://crates.io/crates/ncmdump)
 [![](https://img.shields.io/crates/d/ncmdump)](https://crates.io/crates/ncmdump)
 
-[[English](./README.md)] [[中文](./README.cn)]
+[[English](./README.md)] [[中文](./README.cn.md)]
 
 ## Credit
 
