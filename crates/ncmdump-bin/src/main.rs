@@ -8,6 +8,7 @@ use anyhow::Result;
 use clap::Parser;
 
 use ncmdump::{Ncmdump, QmcDump};
+use ncmdump::error::Errors;
 use ncmdump::utils::FileType;
 
 use crate::command::Command;
@@ -57,17 +58,20 @@ impl Program {
         }?;
 
         let path = provider.get_path();
-        let parent = match &self.command.output {
-            None => path.parent().ok_or(Error::Path)?,
-            Some(p) => Path::new(p),
+        let target_path = match &self.command.output {
+            None => path.with_extension(ext),
+            Some(p) => Path::new(p)
+                .join(
+                    path.file_name()
+                        .ok_or(Errors::IO("Can't get file name".into()))?,
+                )
+                .with_extension(ext),
         };
-        let file_name = path.file_stem().ok_or(Error::Path)?;
-        let path = parent.join(file_name).with_extension(ext);
         let mut target = File::options()
             .create(true)
             .write(true)
             .truncate(true)
-            .open(path)?;
+            .open(target_path)?;
         if provider.get_format() == FileType::Ncm {
             let file = File::open(provider.get_path())?;
             let mut dump = Ncmdump::from_reader(file)?;
