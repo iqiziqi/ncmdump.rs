@@ -52,7 +52,7 @@ Options:
 在你的 `Cargo.toml` 文件中添加依赖：
 
 ```toml
-ncmdump = "0.7.2"
+ncmdump = "0.7.3"
 ```
 
 或者，如果安装了 [cargo-edit](https://github.com/killercup/cargo-edit)，你可以使用命令：
