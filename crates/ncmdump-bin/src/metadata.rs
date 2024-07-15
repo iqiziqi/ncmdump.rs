@@ -17,7 +17,8 @@ pub(crate) struct Mp3Metadata(id3::Tag);
 
 impl Mp3Metadata {
     pub(crate) fn new(info: &NcmInfo, image: &[u8], data: &[u8]) -> Self {
-        let mut tag = id3::Tag::read_from(data).unwrap_or_else(|_| id3::Tag::new());
+        let cursor = Cursor::new(data.to_vec());
+        let mut tag = id3::Tag::read_from2(cursor).unwrap_or_else(|_| id3::Tag::new());
         let artist = info
             .artist
             .iter()
