@@ -80,7 +80,7 @@ where
     cursor: u64,
     info: (u64, u64),
     image: (u64, u64),
-    key_box: Vec<usize>,
+    key_box: [u8; 256],
 }
 
 impl From<RawNcmInfo> for NcmInfo {
@@ -139,10 +139,11 @@ where
     }
 
     fn encrypt(&mut self, offset: u64, buffer: &mut [u8]) {
-        for (index, byte) in buffer.iter_mut().enumerate() {
-            let j = ((offset + index as u64 + 1) & 0xff) as usize;
-            let key_index = (self.key_box[j] + self.key_box[(self.key_box[j] + j) & 0xff]) & 0xff;
-            *byte ^= self.key_box[key_index] as u8;
+        for (i, byte) in buffer.iter_mut().enumerate() {
+            let j = ((offset + i as u64 + 1) & 0xff) as usize;
+            let k = (self.key_box[j as usize].wrapping_add(j as u8)) as usize;
+            let key_index = self.key_box[k].wrapping_add(self.key_box[j]) as usize;
+            *byte ^= self.key_box[key_index]
         }
     }
 
@@ -153,15 +154,18 @@ where
         Ok(result)
     }
 
-    fn build_key_box(key: &[u8]) -> Vec<usize> {
-        let mut last_byte = 0;
-        let mut key_box = (0..256).collect::<Vec<usize>>();
-        let mut offsets = (0..key.len()).cycle();
-        for i in 0..256 {
-            let offset = offsets.next().unwrap();
-            let c = (key_box[i] + last_byte + key[offset] as usize) & 0xff;
-            key_box.swap(i, c);
-            last_byte = c;
+    fn build_key_box(key: &[u8]) -> [u8; 256] {
+        let mut j = 0;
+        let mut key_box = [0u8; 256];
+        key_box
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, k)| *k = i as u8);
+
+        let key_stream = key.iter().cycle();
+        for (i, &k) in (0..256).zip(key_stream) {
+            j = key_box[i].wrapping_add(j).wrapping_add(k);
+            key_box.swap(i, j as usize);
         }
         key_box
     }
@@ -763,7 +767,7 @@ pub mod tests {
             0x69, 0x6A, 0x6C, 0x69, 0x69, 0x6F, 0x6E, 0x56, 0x55, 0x58, 0x58, 0x67, 0x39, 0x70,
             0x6C, 0x54, 0x62, 0x58, 0x45, 0x63, 0x6C, 0x41, 0x45, 0x39, 0x4C, 0x62,
         ];
-        let key_box = vec![
+        let key_box = [
             0x43, 0x63, 0x9D, 0xE2, 0x5B, 0x4B, 0x55, 0xBB, 0x4C, 0xCF, 0x2A, 0x62, 0x0E, 0x48,
             0x8A, 0x15, 0x59, 0x52, 0xBA, 0x6C, 0xEF, 0x6D, 0x72, 0x39, 0xA0, 0x9A, 0xA9, 0x27,
             0x66, 0xBC, 0xF9, 0xC0, 0x47, 0xDF, 0x7D, 0xDE, 0x3B, 0x81, 0x04, 0xFF, 0x90, 0x77,
