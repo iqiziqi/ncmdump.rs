@@ -171,14 +171,8 @@ where
     }
 
     /// Check the file format by header.
-    fn check_format(buffer: &[u8]) -> Result<bool> {
-        let buf = buffer.split_at(std::mem::size_of::<u64>()).0;
-        let bytes = buf.try_into().map_err(|_| Errors::Decode)?;
-        let temp = u64::from_ne_bytes(bytes);
-        if temp != 0x4d41_4446_4e45_5443 {
-            return Ok(false);
-        }
-        Ok(true)
+    fn check_format(buffer: &[u8]) -> bool {
+        buffer.starts_with(b"CTENFDAM")
     }
 
     /// Get length by byte buffer.
@@ -224,8 +218,10 @@ where
     pub fn from_reader(mut reader: S) -> Result<Self> {
         // check format
         let mut format = [0; 10];
-        let size = reader.read(&mut format)?;
-        if size != 10 || !Self::check_format(&format)? {
+        reader
+            .read_exact(&mut format)
+            .map_err(|_| Errors::InvalidFileType)?;
+        if !Self::check_format(&format) {
             return Err(Errors::InvalidFileType);
         }
 
