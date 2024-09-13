@@ -174,13 +174,6 @@ where
     fn check_format(buffer: &[u8]) -> bool {
         buffer.starts_with(b"CTENFDAM")
     }
-
-    /// Get length by byte buffer.
-    fn get_length(buffer: &[u8]) -> Result<u64> {
-        let bytes = buffer.try_into().map_err(|_| Errors::Decode)?;
-        let length = u32::from_ne_bytes(bytes) as u64;
-        Ok(length)
-    }
 }
 
 impl<S> Ncmdump<S>
@@ -225,31 +218,25 @@ where
             return Err(Errors::InvalidFileType);
         }
 
-        let mut key_length_buffer = [0; 4];
-        let read_size = reader.read(&mut key_length_buffer)? as u64;
-        if read_size != 4 {
-            return Err(Errors::InvalidKeyLength);
-        }
-        let key_start = reader.stream_position()?;
-        let key_length = Self::get_length(&key_length_buffer)?;
-        let mut key = Vec::new();
-        let key_reader = reader.by_ref();
-        key_reader.seek(SeekFrom::Start(key_start))?;
-        let key_size = key_reader.take(key_length).read_to_end(&mut key)?;
-        if key_length != key_size as u64 {
-            return Err(Errors::InvalidKeyLength);
-        }
+        let mut key_length = [0; 4];
+        reader
+            .read_exact(&mut key_length)
+            .map_err(|_| Errors::InvalidKeyLength)?;
+        let key_length = u32::from_le_bytes(key_length) as usize;
+        let mut key = vec![0u8; key_length];
+        reader
+            .read_exact(&mut key)
+            .map_err(|_| Errors::InvalidKeyLength)?;
         let key = Self::get_key(&key)?;
         let key_box = Self::build_key_box(&key);
 
         // reader.seek(SeekFrom::Current(key_length as i64))?;
-        let mut info_length_buffer = [0; 4];
-        let read_size = reader.read(&mut info_length_buffer)? as u64;
-        if read_size != 4 {
-            return Err(Errors::InvalidInfoLength);
-        }
+        let mut info_length = [0; 4];
+        reader
+            .read_exact(&mut info_length)
+            .map_err(|_| Errors::InvalidInfoLength)?;
         let info_start = reader.stream_position()?;
-        let info_length = Self::get_length(&info_length_buffer)?;
+        let info_length = u32::from_le_bytes(info_length) as u64;
 
         reader.seek(SeekFrom::Current(info_length as i64))?;
         reader.seek(SeekFrom::Current(5))?;
@@ -257,13 +244,12 @@ where
         reader.read_exact(&mut cover_frame_len)?;
         let cover_frame_len = u32::from_le_bytes(cover_frame_len) as u64;
 
-        let mut image_length_buffer = [0; 4];
-        let read_size = reader.read(&mut image_length_buffer)?;
-        if read_size != 4 {
-            return Err(Errors::InvalidImageLength);
-        }
+        let mut image_length = [0; 4];
+        reader
+            .read_exact(&mut image_length)
+            .map_err(|_| Errors::InvalidImageLength)?;
         let image_start = reader.stream_position()?;
-        let image_length = Self::get_length(&image_length_buffer)?;
+        let image_length = u32::from_le_bytes(image_length) as u64;
 
         reader.seek(SeekFrom::Start(image_start + cover_frame_len))?;
         Ok(Self {
