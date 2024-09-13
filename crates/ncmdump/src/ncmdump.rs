@@ -1,10 +1,10 @@
 use std::io::{Read, Seek, SeekFrom, Write};
 
 use aes::Aes128;
-use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use cipher::{BlockDecryptMut, KeyInit};
+use base64::Engine;
 use cipher::block_padding::Pkcs7;
+use cipher::{BlockDecryptMut, KeyInit};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Errors, Result};
@@ -252,7 +252,11 @@ where
         let info_length = Self::get_length(&info_length_buffer)?;
 
         reader.seek(SeekFrom::Current(info_length as i64))?;
-        reader.seek(SeekFrom::Current(9))?;
+        reader.seek(SeekFrom::Current(5))?;
+        let mut cover_frame_len = [0; 4];
+        reader.read_exact(&mut cover_frame_len)?;
+        let cover_frame_len = u32::from_le_bytes(cover_frame_len) as u64;
+
         let mut image_length_buffer = [0; 4];
         let read_size = reader.read(&mut image_length_buffer)?;
         if read_size != 4 {
@@ -261,7 +265,7 @@ where
         let image_start = reader.stream_position()?;
         let image_length = Self::get_length(&image_length_buffer)?;
 
-        reader.seek(SeekFrom::Start(image_start + image_length))?;
+        reader.seek(SeekFrom::Start(image_start + cover_frame_len))?;
         Ok(Self {
             reader,
             key_box,
