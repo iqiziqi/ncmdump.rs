@@ -1,4 +1,8 @@
 pub(crate) fn get_image_mime_type(bytes: &[u8]) -> &'static str {
+    if bytes.len() < 12 {
+        return "image/*";
+    }
+
     match &bytes[..12] {
         [0x89, 0x50, 0x4e, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, ..] => "image/png",
         [0xFF, 0xD8, 0xFF, 0xE0 | 0xE1 | 0xE2 | 0xE3 | 0xE8, ..] => "image/jpeg",

@@ -1,8 +1,8 @@
 use std::io::{Cursor, Seek, SeekFrom, Write};
 
 use anyhow::Result;
-use id3::{TagLike, Version};
 use id3::frame::Picture;
+use id3::{TagLike, Version};
 
 use ncmdump::NcmInfo;
 
@@ -65,11 +65,13 @@ impl FlacMetadata {
         mc.set_title(vec![info.name.to_string()]);
         mc.set_album(vec![info.album.to_string()]);
         mc.set_artist(artist);
-        tag.add_picture(
-            get_image_mime_type(image),
-            metaflac::block::PictureType::CoverFront,
-            image.to_vec(),
-        );
+        if !image.is_empty() {
+            tag.add_picture(
+                get_image_mime_type(image),
+                metaflac::block::PictureType::CoverFront,
+                image.to_vec(),
+            );
+        }
         Self(tag)
     }
 }
