@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup | Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
       - name: Setup | Cache cargo
         uses: actions/cache@v3
@@ -34,11 +34,20 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Deploy | Package
+      - name: Deploy | Package ncmdump
         run: cargo package --package ncmdump
 
-      - name: Deploy | List packaged files
+      - name: Deploy | List ncmdump packaged files
         run: cargo package --package ncmdump --list
 
-      - name: Deploy | Publish
+      - name: Deploy | Publish npmdump
         run: cargo publish --package ncmdump --token ${{secrets.crate_token}}
+
+      - name: Deploy | Package ncmdump-bin
+        run: cargo package --package ncmdump-bin
+
+      - name: Deploy | List ncmdump-bin packaged files
+        run: cargo package --package ncmdump-bin --list
+
+      - name: Deploy | Publish npmdump-bin
+        run: cargo publish --package ncmdump-bin --token ${{secrets.crate_token}}
