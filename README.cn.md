@@ -24,6 +24,8 @@
 cargo install ncmdump
 ```
 
+或者通过 [GitHub Release](https://github.com/iqiziqi/ncmdump.rs/releases/latest) 下载。
+
 ### 简单使用
 
 ```shell
@@ -52,7 +54,7 @@ Options:
 在你的 `Cargo.toml` 文件中添加依赖：
 
 ```toml
-ncmdump = "0.7.3"
+ncmdump = "0.8.0"
 ```
 
 或者，如果安装了 [cargo-edit](https://github.com/killercup/cargo-edit)，你可以使用命令：

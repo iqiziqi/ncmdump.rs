@@ -21,8 +21,10 @@
 You can install by Cargo.
 
 ```shell
-cargo install ncmdump
+cargo install ncmdump-bin
 ```
+
+Or download the binary file by [GitHub Release](https://github.com/iqiziqi/ncmdump.rs/releases/latest).
 
 ### Simple usage
 
@@ -52,7 +54,7 @@ Options:
 You can add this to your `Cargo.toml`:
 
 ```toml
-ncmdump = "0.7.3"
+ncmdump = "0.8.0"
 ```
 
 Also, you can use this command to install this crate,

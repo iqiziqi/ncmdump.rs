@@ -3,7 +3,7 @@ members = ["crates/ncmdump", "crates/ncmdump-bin"]
 resolver = "2"
 
 [workspace.package]
-version = "0.7.3"
+version = "0.8.0"
 authors = ["iqiziqi <iqiziqi@outlook.com>"]
 edition = "2021"
 
@@ -17,5 +17,10 @@ keywords = ["ncm", "qmc", "music", "dump"]
 
 [workspace.dependencies]
 anyhow = "^1.0"
-ncmdump = { path = "crates/ncmdump" }
+ncmdump = { path = "crates/ncmdump", version = "0.8.0" }
 thiserror = "^1.0"
+
+[profile.release]
+lto = true
+opt-level = "s"
+strip = true

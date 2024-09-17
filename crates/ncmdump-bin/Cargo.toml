@@ -26,8 +26,3 @@ thiserror = { workspace = true }
 ncmdump = { workspace = true }
 metaflac = "0.2.5"
 id3 = "1.9.0"
-
-[profile.release]
-lto = true
-opt-level = "s"
-strip = true
