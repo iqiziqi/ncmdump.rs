@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-use glob::glob;
 
 use crate::errors::Error;
 
@@ -46,13 +45,11 @@ impl Command {
     pub(crate) fn items(&self) -> Result<Vec<PathBuf>, Error> {
         let mut paths = Vec::new();
         for matcher in &self.matchers {
-            for entry in glob(matcher)? {
-                let path = entry?;
-                if !path.is_file() {
-                    continue;
-                }
-                paths.push(path)
+            let path = PathBuf::from(matcher);
+            if !path.is_file() {
+                continue;
             }
+            paths.push(path)
         }
         Ok(paths)
     }
