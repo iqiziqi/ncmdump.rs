@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-
+use glob::glob;
 use crate::errors::Error;
 
 #[derive(Clone, Debug, Default, Parser)]
@@ -42,6 +42,22 @@ impl Command {
         Ok(())
     }
 
+    #[cfg(target_os = "windows")]
+    pub(crate) fn items(&self) -> std::result::Result<Vec<PathBuf>, Error> {
+        let mut paths = Vec::new();
+        for matcher in &self.matchers {
+            for entry in glob(matcher)? {
+                let path = entry?;
+                if !path.is_file() {
+                    continue;
+                }
+                paths.push(path)
+            }
+        }
+        Ok(paths)
+    }
+
+    #[cfg(not(target_os = "windows"))]
     pub(crate) fn items(&self) -> Result<Vec<PathBuf>, Error> {
         let mut paths = Vec::new();
         for matcher in &self.matchers {
