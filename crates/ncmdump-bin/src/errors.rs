@@ -1,6 +1,5 @@
 use std::io;
 
-use glob::{GlobError, PatternError};
 use ncmdump::error::Errors;
 use thiserror::Error;
 
@@ -20,14 +19,16 @@ pub enum Error {
     Dump(String),
 }
 
-impl From<PatternError> for Error {
-    fn from(_: PatternError) -> Self {
+#[cfg(target_os = "windows")]
+impl From<glob::PatternError> for Error {
+    fn from(_: glob::PatternError) -> Self {
         Self::Path
     }
 }
 
-impl From<GlobError> for Error {
-    fn from(_: GlobError) -> Self {
+#[cfg(target_os = "windows")]
+impl From<glob::GlobError> for Error {
+    fn from(_: glob::GlobError) -> Self {
         Self::Path
     }
 }
