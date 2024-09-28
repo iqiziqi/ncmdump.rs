@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -42,32 +43,26 @@ impl Command {
         Ok(())
     }
 
-    #[cfg(target_os = "windows")]
     pub(crate) fn items(&self) -> std::result::Result<Vec<PathBuf>, Error> {
-        let mut paths = Vec::new();
+        let mut paths = HashSet::new();
         for matcher in &self.matchers {
-            for entry in glob(matcher)? {
+            let path = PathBuf::from(matcher);
+            if path.exists() {
+                paths.insert(path);
+            }
+            let glob_result = glob(matcher);
+            if glob_result.is_err() {
+                continue;
+            }
+            for entry in glob_result? {
                 let path = entry?;
                 if !path.is_file() {
                     continue;
                 }
-                paths.push(path)
+                paths.insert(path);
             }
         }
-        Ok(paths)
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    pub(crate) fn items(&self) -> Result<Vec<PathBuf>, Error> {
-        let mut paths = Vec::new();
-        for matcher in &self.matchers {
-            let path = PathBuf::from(matcher);
-            if !path.is_file() {
-                continue;
-            }
-            paths.push(path)
-        }
-        Ok(paths)
+        Ok(paths.into_iter().collect())
     }
 }
 
